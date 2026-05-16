@@ -237,11 +237,12 @@ export function AddChoreModal({
             placeholder='Try: "clean garden Saturday" or "change tires every 6 months"'
             value={text}
             onChange={(e) => { setText(e.target.value); setDismissed({}); }}
-            style={{ paddingLeft: 44, fontSize: 16 }}
+            style={{ paddingLeft: 44, paddingRight: 50, fontSize: 16 }}
           />
           <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }}>
             <Icon name="sparkles" color="var(--terracotta)" size={20} />
           </span>
+          <VoiceButton onResult={(t) => { setText((prev) => (prev ? prev + " " : "") + t); setDismissed({}); }} />
         </div>
 
         {(suggestLoading || suggestion.icon || suggestion.category || suggestion.recurInterval || suggestion.priority || suggestion.dueHint) && (
@@ -625,6 +626,84 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
         }}
       />
+    </button>
+  );
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+interface SpeechRecognitionLike extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onresult: ((ev: { results: { 0: { transcript: string } }[] }) => void) | null;
+  onerror: ((ev: Event) => void) | null;
+  onend: (() => void) | null;
+}
+
+function getSpeechCtor(): SpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+function VoiceButton({ onResult }: { onResult: (text: string) => void }) {
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(true);
+  const recogRef = useState<SpeechRecognitionLike | null>(null);
+  useEffect(() => {
+    setSupported(getSpeechCtor() !== null);
+  }, []);
+  if (!supported) return null;
+
+  function start() {
+    const Ctor = getSpeechCtor();
+    if (!Ctor) return;
+    const r = new Ctor();
+    r.lang = navigator.language || "it-IT";
+    r.continuous = false;
+    r.interimResults = false;
+    r.onresult = (ev) => {
+      const t = ev.results?.[0]?.[0]?.transcript ?? "";
+      if (t) onResult(t.trim());
+    };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    r.start();
+    recogRef[1](r);
+    setListening(true);
+  }
+
+  function stop() {
+    recogRef[0]?.stop();
+    setListening(false);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => (listening ? stop() : start())}
+      aria-label={listening ? "Stop voice input" : "Voice input"}
+      title="Voice input"
+      style={{
+        position: "absolute",
+        right: 8,
+        top: "50%",
+        transform: "translateY(-50%)",
+        width: 36,
+        height: 36,
+        borderRadius: 99,
+        background: listening ? "var(--terracotta)" : "rgba(0,0,0,0.04)",
+        display: "grid",
+        placeItems: "center",
+        animation: listening ? "pulseSoft 1.2s ease-in-out infinite" : undefined
+      }}
+    >
+      <Icon name="mic" color={listening ? "white" : "var(--ink-3)"} size={16} />
     </button>
   );
 }

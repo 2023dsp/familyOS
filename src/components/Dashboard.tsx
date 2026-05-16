@@ -122,6 +122,22 @@ export function Dashboard() {
     return () => mq.removeEventListener("change", fn);
   }, []);
 
+  // Cmd/Ctrl+K → open Add Chore modal
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setAdding({});
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Push a history entry whenever a modal opens, so the back button closes it.
   useEffect(() => {
     if (adding || opened) {
@@ -236,6 +252,27 @@ export function Dashboard() {
     load();
   }
 
+  async function markAllDoneToday() {
+    const ids = chores
+      .filter((c) => c.status === "active" && c.dueDate && isSameDay(new Date(c.dueDate), new Date()))
+      .map((c) => c.id);
+    if (ids.length === 0) return;
+    if (!confirm(`Mark ${ids.length} chore${ids.length === 1 ? "" : "s"} as done?`)) return;
+    setChores((cs) =>
+      cs.map((c) => (ids.includes(c.id) ? { ...c, status: "completed" as const } : c))
+    );
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/chores/${id}/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        })
+      )
+    );
+    load();
+  }
+
   async function toggleImportant(id: string, next: boolean) {
     setChores((cs) => cs.map((c) => (c.id === id ? { ...c, important: next } : c)));
     await fetch(`/api/chores/${id}`, {
@@ -298,6 +335,7 @@ export function Dashboard() {
                   persona: e.persona ?? null
                 })
               }
+              onMarkAllDone={markAllDoneToday}
             />
           )}
           {tab === "calendar" && <CalendarView events={events} onChanged={load} isWide={isWide} />}
@@ -590,6 +628,7 @@ type HomeProps = {
   onAdd: () => void;
   onToggleImportant: (id: string, next: boolean) => void;
   onEventClick: (e: CalEvent) => void;
+  onMarkAllDone: () => void;
 };
 
 function Home(p: HomeProps) {
@@ -704,7 +743,18 @@ function TabletHome(p: HomeProps) {
           <div className="card">
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, alignItems: "center" }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Today&apos;s chores</h2>
-              <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Tap circle to complete · row to open</span>
+              {todayChores.some((c) => !c.done) ? (
+                <button
+                  type="button"
+                  onClick={p.onMarkAllDone}
+                  className="btn btn-ghost"
+                  style={{ padding: "6px 12px", fontSize: 12 }}
+                >
+                  <Icon name="check" color="var(--olive)" size={14} /> Mark all done
+                </button>
+              ) : (
+                <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Tap circle to complete · row to open</span>
+              )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {loading && todayChores.length === 0 && (
