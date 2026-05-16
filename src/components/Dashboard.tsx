@@ -7,6 +7,7 @@ import { Avatar } from "./Avatar";
 import { Ring, Progress } from "./Ring";
 import { ChoreRow, type ChoreRowData } from "./ChoreRow";
 import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
+import { AddEventModal, type ExistingEvent } from "./AddEventModal";
 import { ChoreDetailModal } from "./ChoreDetailModal";
 import { ThemeToggle } from "./ThemeToggle";
 import { GoogleCalendarCard } from "./GoogleCalendarCard";
@@ -92,6 +93,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
+  const [editingEvent, setEditingEvent] = useState<ExistingEvent | null>(null);
   const [tab, _setTab] = useState<"home" | "calendar" | "all" | "templates" | "settings">("home");
   type Tab = "home" | "calendar" | "all" | "templates" | "settings";
   const setTab = useCallback((next: Tab) => {
@@ -284,6 +286,17 @@ export function Dashboard() {
               onOpen={(c) => setOpened(c)}
               onAdd={() => setAdding({})}
               onToggleImportant={toggleImportant}
+              onEventClick={(e) =>
+                setEditingEvent({
+                  id: e.id,
+                  title: e.title,
+                  description: null,
+                  startsAt: e.startsAt,
+                  endsAt: e.endsAt,
+                  allDay: e.allDay,
+                  persona: e.persona ?? null
+                })
+              }
             />
           )}
           {tab === "calendar" && <CalendarView events={events} onChanged={load} isWide={isWide} />}
@@ -320,6 +333,16 @@ export function Dashboard() {
 
       {adding && <AddChoreModal onClose={() => setAdding(null)} onSaved={() => { setAdding(null); load(); }} prefill={adding} />}
       {opened && <ChoreDetailModal chore={opened} onClose={() => setOpened(null)} onChanged={load} />}
+      {editingEvent && (
+        <AddEventModal
+          existing={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSaved={() => {
+            setEditingEvent(null);
+            load();
+          }}
+        />
+      )}
     </div>
     </CategoriesProvider>
   );
@@ -565,6 +588,7 @@ type HomeProps = {
   onOpen: (c: ChoreRowData) => void;
   onAdd: () => void;
   onToggleImportant: (id: string, next: boolean) => void;
+  onEventClick: (e: CalEvent) => void;
 };
 
 function Home(p: HomeProps) {
@@ -726,7 +750,7 @@ function TabletHome(p: HomeProps) {
             <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> {p.events.some((e) => e.source === "google") ? "Google" : "Local"}</span>
           </div>
           <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
-            <EventList events={p.events.slice(0, 20)} />
+            <EventList events={p.events.slice(0, 20)} onEventClick={p.onEventClick} />
           </div>
         </div>
       </div>
@@ -849,7 +873,7 @@ function RecurringList({ rows, dense }: { rows: ApiChore[]; dense?: boolean }) {
   );
 }
 
-function EventList({ events }: { events: CalEvent[] }) {
+function EventList({ events, onEventClick }: { events: CalEvent[]; onEventClick?: (e: CalEvent) => void }) {
   if (events.length === 0) {
     return (
       <div className="card-flat" style={{ padding: 14, borderRadius: 14, borderLeft: "4px solid var(--blue)" }}>
@@ -881,8 +905,11 @@ function EventList({ events }: { events: CalEvent[] }) {
                 ? "All day"
                 : s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
               return (
-                <div
+                <button
                   key={e.id}
+                  type="button"
+                  onClick={() => onEventClick?.(e)}
+                  disabled={!onEventClick}
                   style={{
                     display: "flex",
                     padding: "10px 12px",
@@ -890,14 +917,17 @@ function EventList({ events }: { events: CalEvent[] }) {
                     borderRadius: 14,
                     borderLeft: `4px solid ${e.color ?? "var(--blue)"}`,
                     gap: 12,
-                    alignItems: "center"
+                    alignItems: "center",
+                    textAlign: "left",
+                    cursor: onEventClick ? "pointer" : "default",
+                    width: "100%"
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</div>
                     <div className="muted" style={{ fontSize: 12 }}>{timeLabel} · {e.calendar ?? e.source}</div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

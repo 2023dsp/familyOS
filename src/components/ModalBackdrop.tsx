@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export function ModalBackdrop({
   onClose,
@@ -11,26 +12,42 @@ export function ModalBackdrop({
   children: ReactNode;
   variant?: "auto" | "center" | "sheet";
 }) {
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    // Lock body scroll while open
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  const node = (
     <div
       onClick={onClose}
       style={{
         position: "fixed",
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100dvh",
         background: "rgba(20,15,10,0.32)",
         backdropFilter: "blur(2px)",
         display: "flex",
         alignItems: "flex-start",
         justifyContent: "center",
-        zIndex: 100,
+        zIndex: 1000,
         padding: "24px 16px",
         overflowY: "auto",
         animation: "fadeIn 0.18s ease both"
@@ -57,4 +74,6 @@ export function ModalBackdrop({
       </div>
     </div>
   );
+
+  return createPortal(node, document.body);
 }
