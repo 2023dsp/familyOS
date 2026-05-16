@@ -23,6 +23,7 @@ export type ChoreRowData = {
   done: boolean;
   important: boolean;
   reminderAt?: string | null;
+  notes?: string | null;
 };
 
 export function PriorityDots({ p }: { p: PriorityKey }) {
