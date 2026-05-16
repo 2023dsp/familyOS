@@ -116,6 +116,7 @@ model CalendarEvent {
   allDay      Boolean  @default(false)
   calendar    String?
   color       String?
+  persona     String?  // "davide" | "luize" | "family" | "other" | null
   source      String   @default("local") // local | google
   externalId  String?  @unique
   choreId     String?

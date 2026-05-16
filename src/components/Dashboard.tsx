@@ -13,6 +13,7 @@ import { GoogleCalendarCard } from "./GoogleCalendarCard";
 import { AllChoresView } from "./AllChoresView";
 import { CategoriesEditor } from "./CategoriesEditor";
 import { PushSubscribeCard } from "./PushSubscribeCard";
+import { CalendarView, type CalEvent } from "./CalendarView";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
 import { CategoriesProvider, useCategories } from "./CategoriesContext";
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
@@ -56,16 +57,6 @@ type Stats = {
   score: number;
 };
 
-type CalEvent = {
-  id: string;
-  title: string;
-  startsAt: string;
-  endsAt: string | null;
-  allDay: boolean;
-  calendar: string | null;
-  color: string | null;
-  source: string;
-};
 
 function toRowData(c: ApiChore): ChoreRowData {
   const slug = (c.assignee?.slug ?? "unassigned") as AssigneeSlug;
@@ -219,7 +210,7 @@ export function Dashboard() {
               onAdd={() => setAdding({})}
             />
           )}
-          {tab === "calendar" && <CalendarView events={events} />}
+          {tab === "calendar" && <CalendarView events={events} onChanged={load} isWide={isWide} />}
           {tab === "all" && (
             <AllChoresView
               chores={chores.filter((c) => c.status !== "archived").map(toRowData)}
@@ -854,21 +845,9 @@ function SkeletonRow({ dense = false }: { dense?: boolean }) {
   );
 }
 
-function CalendarView({ events }: { events: CalEvent[] }) {
-  return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <div>
-        <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Calendar</span>
-        <h1 style={{ margin: "4px 0", fontSize: 28, fontWeight: 800 }}>
-          {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-        </h1>
-      </div>
-      <div className="card">
-        <EventList events={events} />
-      </div>
-    </div>
-  );
-}
+// Inline placeholder replaced — the real CalendarView lives in ./CalendarView.tsx
+// and is imported at the top of this file. This keeps the legacy EventList type local.
+
 
 function Templates({ templates, isWide, onPick }: { templates: Template[]; isWide: boolean; onPick: (t: Template) => void }) {
   const categories = useCategories();

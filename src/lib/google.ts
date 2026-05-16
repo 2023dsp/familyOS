@@ -1,6 +1,7 @@
 import { google, calendar_v3 } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
 import { prisma } from "./prisma";
+import { detectPersona, PERSONA_META } from "./events";
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
 
@@ -123,6 +124,62 @@ async function getAuthedClient(): Promise<{ oauth: OAuth2Client; calendarId: str
   return { oauth, calendarId };
 }
 
+export async function pushLocalEventToGoogle(eventId: string): Promise<void> {
+  const ctx = await getAuthedClient();
+  if (!ctx) return;
+  const ev = await prisma.calendarEvent.findUnique({ where: { id: eventId } });
+  if (!ev || ev.source !== "local") return;
+  const cal = google.calendar({ version: "v3", auth: ctx.oauth });
+
+  const startDate = ev.startsAt;
+  const endDate = ev.endsAt ?? new Date(startDate.getTime() + 60 * 60 * 1000);
+  const body: calendar_v3.Schema$Event = {
+    summary: ev.title,
+    description: ev.description ?? undefined,
+    start: ev.allDay
+      ? { date: startDate.toISOString().slice(0, 10) }
+      : { dateTime: startDate.toISOString() },
+    end: ev.allDay
+      ? { date: endDate.toISOString().slice(0, 10) }
+      : { dateTime: endDate.toISOString() },
+    extendedProperties: { private: { familyosEventId: ev.id, familyosPersona: ev.persona ?? "" } }
+  };
+
+  if (ev.externalId) {
+    try {
+      await cal.events.patch({ calendarId: ctx.calendarId, eventId: ev.externalId, requestBody: body });
+    } catch (e) {
+      const err = e as { code?: number };
+      if (err.code === 404) {
+        await prisma.calendarEvent.update({ where: { id: ev.id }, data: { externalId: null } });
+      }
+    }
+  } else {
+    try {
+      const res = await cal.events.insert({ calendarId: ctx.calendarId, requestBody: body });
+      if (res.data.id) {
+        await prisma.calendarEvent.update({
+          where: { id: ev.id },
+          data: { externalId: res.data.id, source: "google" }
+        });
+      }
+    } catch {
+      /* ignore — user will see event locally; next manual sync may reconcile */
+    }
+  }
+}
+
+export async function deleteGoogleEvent(externalId: string): Promise<void> {
+  const ctx = await getAuthedClient();
+  if (!ctx) return;
+  const cal = google.calendar({ version: "v3", auth: ctx.oauth });
+  try {
+    await cal.events.delete({ calendarId: ctx.calendarId, eventId: externalId });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function syncGoogleCalendar(): Promise<{ pulled: number; pushed: number }> {
   const ctx = await getAuthedClient();
   if (!ctx) throw new Error("Google not connected");
@@ -155,25 +212,31 @@ export async function syncGoogleCalendar(): Promise<{ pulled: number; pushed: nu
         const startsAt = ev.start?.dateTime ? new Date(ev.start.dateTime) : ev.start?.date ? new Date(ev.start.date) : null;
         const endsAt = ev.end?.dateTime ? new Date(ev.end.dateTime) : ev.end?.date ? new Date(ev.end.date) : null;
         if (!startsAt) continue;
+        const title = ev.summary ?? "(no title)";
+        const persona = detectPersona(title);
+        const color = PERSONA_META[persona].color;
         await prisma.calendarEvent.upsert({
           where: { externalId: ev.id },
           create: {
             externalId: ev.id,
-            title: ev.summary ?? "(no title)",
+            title,
             description: ev.description ?? null,
             startsAt,
             endsAt,
             allDay: !ev.start?.dateTime,
             calendar: calendarId,
-            color: null,
+            color,
+            persona,
             source: "google"
           },
           update: {
-            title: ev.summary ?? "(no title)",
+            title,
             description: ev.description ?? null,
             startsAt,
             endsAt,
-            allDay: !ev.start?.dateTime
+            allDay: !ev.start?.dateTime,
+            color,
+            persona
           }
         });
         pulled++;
