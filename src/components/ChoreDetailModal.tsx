@@ -7,11 +7,23 @@ import { Avatar } from "./Avatar";
 import { PriorityDots } from "./ChoreRow";
 import { ASSIGNEES, PRIORITIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
 import { useCategories } from "./CategoriesContext";
+// categories used in detail modal for editable category section
 import { formatRecurrence } from "../lib/recurrence";
 import type { ChoreRowData } from "./ChoreRow";
 import type { RecurrenceUnit } from "@prisma/client";
 
-type LocalChore = ChoreRowData & { reminderAt?: string | null };
+type LocalChore = ChoreRowData & { reminderAt?: string | null; notes?: string | null };
+
+const ICON_PICK = ["broom", "dishes", "trash", "plant", "drop", "bulb", "cart", "car", "sofa", "card", "book", "tools"];
+const WEEK_DAYS = [
+  { key: "mon", label: "Mon" },
+  { key: "tue", label: "Tue" },
+  { key: "wed", label: "Wed" },
+  { key: "thu", label: "Thu" },
+  { key: "fri", label: "Fri" },
+  { key: "sat", label: "Sat" },
+  { key: "sun", label: "Sun" }
+];
 
 function localDateInputValue(d: Date | null): string {
   if (!d) return "";
@@ -92,6 +104,10 @@ export function ChoreDetailModal({
       // Mirror server values back into local state so UI stays in sync.
       setChore((prev) => ({
         ...prev,
+        title: c.title ?? prev.title,
+        icon: c.icon ?? prev.icon,
+        category: c.category ?? prev.category,
+        notes: c.notes ?? null,
         priority: c.priority ?? prev.priority,
         important: !!c.important,
         dueDate: c.dueDate ?? null,
@@ -156,6 +172,19 @@ export function ChoreDetailModal({
     await patch({ dueDate: base.toISOString() });
   }
 
+  async function snooze(minutes: number) {
+    const base = chore.dueDate ? new Date(chore.dueDate) : new Date();
+    base.setMinutes(base.getMinutes() + minutes);
+    await patch({ dueDate: base.toISOString() });
+  }
+
+  async function snoozeTomorrow() {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    t.setHours(9, 0, 0, 0);
+    await patch({ dueDate: t.toISOString() });
+  }
+
   const recurKey = currentRecurKey(chore);
   const dueAsDate = chore.dueDate ? new Date(chore.dueDate) : null;
   const reminderAsDate = chore.reminderAt ? new Date(chore.reminderAt) : null;
@@ -176,8 +205,8 @@ export function ChoreDetailModal({
             <span style={{ width: 56, height: 56, borderRadius: 16, background: "var(--surface)", display: "grid", placeItems: "center", boxShadow: "var(--shadow-sm)" }}>
               <Icon name={chore.icon} color={cat?.color ?? "var(--terracotta)"} size={28} />
             </span>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, lineHeight: 1.2 }}>{chore.title}</h2>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <EditableTitle value={chore.title} disabled={busy} onSave={(v) => patch({ title: v })} />
               <span className="pill" style={{ background: cat?.soft, color: cat?.color }}>
                 <Icon name={cat?.icon ?? "broom"} color={cat?.color ?? "var(--terracotta)"} size={12} />
                 {cat?.label ?? chore.category}
@@ -262,16 +291,25 @@ export function ChoreDetailModal({
         </Section>
 
         <Section label="Due">
-          <input
-            type="date"
-            value={localDateInputValue(dueAsDate)}
-            onChange={(e) => patch({ dueDate: inputDateToIso(e.target.value) })}
-            disabled={busy}
-            style={{
-              border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
-              padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
-            }}
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input
+              type="date"
+              value={localDateInputValue(dueAsDate)}
+              onChange={(e) => patch({ dueDate: inputDateToIso(e.target.value) })}
+              disabled={busy}
+              style={{
+                border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
+                padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+                alignSelf: "flex-start"
+              }}
+            />
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <SnoozeBtn label="+1h" onClick={() => snooze(60)} disabled={busy} />
+              <SnoozeBtn label="+3h" onClick={() => snooze(180)} disabled={busy} />
+              <SnoozeBtn label="Tomorrow" onClick={() => snoozeTomorrow()} disabled={busy} />
+              <SnoozeBtn label="Next week" onClick={() => snooze(60 * 24 * 7)} disabled={busy} />
+            </div>
+          </div>
         </Section>
 
         <Section label="Repeats">
@@ -306,6 +344,36 @@ export function ChoreDetailModal({
           {recurLabel && recurKey === "custom" && (
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{recurLabel}</div>
           )}
+          {chore.isRecurring && chore.recurUnit === "week" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              <span style={{ color: "var(--ink-3)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>On these days</span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {WEEK_DAYS.map((d) => {
+                  const days = (chore.recurDaysOfWeek ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+                  const sel = days.includes(d.key);
+                  return (
+                    <button
+                      key={d.key}
+                      type="button"
+                      onClick={() => {
+                        const next = sel ? days.filter((x) => x !== d.key) : [...days, d.key];
+                        patch({ recurDaysOfWeek: next.join(",") || null });
+                      }}
+                      disabled={busy}
+                      style={{
+                        width: 42, height: 32, borderRadius: 10,
+                        background: sel ? "var(--olive)" : "var(--surface-2)",
+                        color: sel ? "white" : "var(--ink-2)",
+                        fontWeight: 800, fontSize: 11
+                      }}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </Section>
 
         <ReminderEditor
@@ -315,6 +383,58 @@ export function ChoreDetailModal({
           reminderAsDate={reminderAsDate}
           onPatch={patch}
         />
+
+        <Section label="Icon">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {ICON_PICK.map((n) => (
+              <button
+                key={n}
+                onClick={() => patch({ icon: n })}
+                type="button"
+                disabled={busy}
+                style={{
+                  width: 38, height: 38, borderRadius: 10,
+                  background: chore.icon === n ? "var(--terracotta-soft)" : "var(--surface-2)",
+                  border: chore.icon === n ? "1.5px solid var(--terracotta)" : "1.5px solid transparent",
+                  display: "grid", placeItems: "center"
+                }}
+              >
+                <Icon name={n} color={chore.icon === n ? "var(--terracotta-deep)" : "var(--ink-2)"} size={18} />
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section label="Category">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {categories.map((c) => {
+              const sel = chore.category === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => patch({ category: c.id })}
+                  type="button"
+                  disabled={busy}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 10px", borderRadius: 99,
+                    background: sel ? c.soft : "rgba(0,0,0,0.04)",
+                    border: sel ? `1.5px solid ${c.color}` : "1.5px solid transparent",
+                    fontWeight: 700, fontSize: 12,
+                    color: sel ? c.color : "var(--ink-2)"
+                  }}
+                >
+                  <Icon name={c.icon} color={sel ? c.color : "var(--ink-3)"} size={12} />
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        </Section>
+
+        <Section label="Notes">
+          <EditableNotes value={chore.notes ?? ""} disabled={busy} onSave={(v) => patch({ notes: v || null })} />
+        </Section>
       </div>
 
       {error && <div style={{ padding: "8px 24px 0", color: "var(--danger)", fontWeight: 700, fontSize: 13 }}>{error}</div>}
@@ -332,6 +452,136 @@ export function ChoreDetailModal({
         </button>
       </div>
     </ModalBackdrop>
+  );
+}
+
+function EditableTitle({ value, disabled, onSave }: { value: string; disabled: boolean; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => !disabled && setEditing(true)}
+        disabled={disabled}
+        style={{
+          all: "unset",
+          cursor: disabled ? "default" : "text",
+          display: "block",
+          fontSize: 22,
+          fontWeight: 800,
+          lineHeight: 1.2,
+          wordBreak: "break-word",
+          width: "100%"
+        }}
+      >
+        {value}
+      </button>
+    );
+  }
+  return (
+    <input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        const v = draft.trim();
+        if (v && v !== value) onSave(v);
+        setEditing(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+      style={{
+        border: "1.5px solid var(--terracotta)",
+        background: "var(--surface)",
+        color: "var(--ink)",
+        padding: "4px 8px",
+        borderRadius: 10,
+        fontSize: 20,
+        fontWeight: 800,
+        fontFamily: "inherit",
+        width: "100%"
+      }}
+    />
+  );
+}
+
+function EditableNotes({ value, disabled, onSave }: { value: string; disabled: boolean; onSave: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    setDraft(value);
+    setDirty(false);
+  }, [value]);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <textarea
+        className="input"
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setDirty(true);
+        }}
+        placeholder="Anything else worth remembering"
+        disabled={disabled}
+        style={{ minHeight: 64, fontSize: 13, resize: "vertical", paddingTop: 10 }}
+      />
+      {dirty && (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={disabled}
+            onClick={() => {
+              onSave(draft.trim());
+              setDirty(false);
+            }}
+            style={{ padding: "4px 12px", fontSize: 12 }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={disabled}
+            onClick={() => {
+              setDraft(value);
+              setDirty(false);
+            }}
+            style={{ padding: "4px 12px", fontSize: 12 }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SnoozeBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: "6px 10px",
+        borderRadius: 99,
+        background: "rgba(0,0,0,0.04)",
+        fontWeight: 700,
+        fontSize: 11,
+        color: "var(--ink-2)",
+        border: "1.5px solid transparent"
+      }}
+    >
+      <Icon name="clock" color="var(--ink-3)" size={12} /> {label}
+    </button>
   );
 }
 

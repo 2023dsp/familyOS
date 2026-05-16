@@ -80,7 +80,8 @@ function toRowData(c: ApiChore): ChoreRowData {
     recurDaysOfWeek: c.recurDaysOfWeek,
     done: c.status === "completed",
     important: !!c.important,
-    reminderAt: c.reminderAt ?? null
+    reminderAt: c.reminderAt ?? null,
+    notes: c.notes ?? null
   };
 }
 
