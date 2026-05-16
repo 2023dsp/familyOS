@@ -56,7 +56,7 @@ export function PushSubscribeCard() {
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlB64ToUint8Array(publicKey)
+          applicationServerKey: urlB64ToUint8Array(publicKey) as unknown as BufferSource
         });
       }
       const json = sub.toJSON();
