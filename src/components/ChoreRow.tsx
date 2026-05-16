@@ -22,6 +22,7 @@ export type ChoreRowData = {
   recurDaysOfWeek: string | null;
   done: boolean;
   important: boolean;
+  reminderAt?: string | null;
 };
 
 export function PriorityDots({ p }: { p: PriorityKey }) {

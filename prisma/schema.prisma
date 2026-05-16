@@ -90,6 +90,9 @@ model Chore {
   googleEventId   String?      @unique
   googleSyncedAt  DateTime?
 
+  reminderAt      DateTime?
+  reminderSentAt  DateTime?
+
   completions     ChoreCompletion[]
 
   @@index([status, dueDate])

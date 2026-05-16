@@ -36,6 +36,7 @@ type ApiChore = {
   status: "active" | "completed" | "archived";
   completedAt: string | null;
   important: boolean;
+  reminderAt: string | null;
 };
 
 type Template = {
@@ -73,7 +74,8 @@ function toRowData(c: ApiChore): ChoreRowData {
     recurUnit: c.recurUnit,
     recurDaysOfWeek: c.recurDaysOfWeek,
     done: c.status === "completed",
-    important: !!c.important
+    important: !!c.important,
+    reminderAt: c.reminderAt ?? null
   };
 }
 
