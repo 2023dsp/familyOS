@@ -44,7 +44,8 @@ export function ModalBackdrop({
           background: "var(--surface)",
           borderRadius: 28,
           width: "min(620px, 100%)",
-          margin: "auto",
+          marginLeft: "auto",
+          marginRight: "auto",
           boxShadow: "var(--shadow-xl)",
           display: "flex",
           flexDirection: "column"
