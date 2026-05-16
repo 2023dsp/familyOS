@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek } from "@/lib/date";
+import { prisma } from "../../../lib/prisma";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek } from "../../../lib/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

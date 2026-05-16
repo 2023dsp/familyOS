@@ -8,9 +8,9 @@ import { Ring, Progress } from "./Ring";
 import { ChoreRow, type ChoreRowData } from "./ChoreRow";
 import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
 import { ChoreDetailModal } from "./ChoreDetailModal";
-import { CATEGORIES, type AssigneeSlug, type PriorityKey } from "@/lib/catalog";
-import { humanDue, helloFor, isSameDay, startOfDay } from "@/lib/date";
-import { formatRecurrence } from "@/lib/recurrence";
+import { CATEGORIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
+import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
 
 type ApiChore = {

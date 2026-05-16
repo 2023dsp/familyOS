@@ -5,9 +5,9 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { PriorityDots } from "./ChoreRow";
-import { ASSIGNEES, CATEGORIES, PRIORITIES, type AssigneeSlug } from "@/lib/catalog";
-import { formatRecurrence } from "@/lib/recurrence";
-import { humanDue } from "@/lib/date";
+import { ASSIGNEES, CATEGORIES, PRIORITIES, type AssigneeSlug } from "../lib/catalog";
+import { formatRecurrence } from "../lib/recurrence";
+import { humanDue } from "../lib/date";
 import type { ChoreRowData } from "./ChoreRow";
 
 export function ChoreDetailModal({ chore, onClose, onChanged }: { chore: ChoreRowData; onClose: () => void; onChanged: () => void }) {

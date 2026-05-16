@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { archiveChore, choreInputSchema, updateChore } from "@/lib/chores";
-import { prisma } from "@/lib/prisma";
+import { archiveChore, choreInputSchema, updateChore } from "../../../../lib/chores";
+import { prisma } from "../../../../lib/prisma";
 
 export const runtime = "nodejs";
 

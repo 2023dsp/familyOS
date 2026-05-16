@@ -2,9 +2,9 @@
 
 import { Avatar } from "./Avatar";
 import { Icon } from "./Icon";
-import { CATEGORIES, PRIORITIES, type AssigneeSlug, type PriorityKey } from "@/lib/catalog";
-import { humanDue } from "@/lib/date";
-import { formatRecurrence } from "@/lib/recurrence";
+import { CATEGORIES, PRIORITIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { humanDue } from "../lib/date";
+import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
 
 export type ChoreRowData = {

@@ -1,4 +1,4 @@
-import { ASSIGNEES, type AssigneeSlug } from "@/lib/catalog";
+import { ASSIGNEES, type AssigneeSlug } from "../lib/catalog";
 
 export function Avatar({ who = "unassigned", size = 32 }: { who?: AssigneeSlug | string | null; size?: number }) {
   const key = (who as AssigneeSlug) in ASSIGNEES ? (who as AssigneeSlug) : "unassigned";

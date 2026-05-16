@@ -5,8 +5,8 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { Segmented } from "./Segmented";
-import { ASSIGNEES, CATEGORIES, type AssigneeSlug, type PriorityKey } from "@/lib/catalog";
-import { RuleSuggestionProvider, type Suggestion } from "@/lib/suggest";
+import { ASSIGNEES, CATEGORIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { RuleSuggestionProvider, type Suggestion } from "../lib/suggest";
 import type { RecurrenceUnit } from "@prisma/client";
 
 const provider = new RuleSuggestionProvider();

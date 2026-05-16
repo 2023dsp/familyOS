@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { defaultSuggestionProvider } from "@/lib/suggest";
+import { defaultSuggestionProvider } from "../../../lib/suggest";
 
 export const runtime = "nodejs";
 

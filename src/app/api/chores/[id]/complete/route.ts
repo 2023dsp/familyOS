@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { completeChore, uncompleteChore } from "@/lib/chores";
+import { completeChore, uncompleteChore } from "../../../../../lib/chores";
 
 export const runtime = "nodejs";
 

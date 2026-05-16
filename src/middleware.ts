@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE_EDGE, verifySessionTokenEdge } from "@/lib/auth-edge";
+import { SESSION_COOKIE_EDGE, verifySessionTokenEdge } from "./lib/auth-edge";
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|login|api/auth/login).*)"]

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { choreInputSchema, createChore, listChores } from "@/lib/chores";
+import { choreInputSchema, createChore, listChores } from "../../../lib/chores";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

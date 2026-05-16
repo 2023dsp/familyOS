@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { checkFamilyPassword, createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth";
-import { isLoginBlocked, recordLoginAttempt } from "@/lib/rate-limit";
+import { checkFamilyPassword, createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "../../../../lib/auth";
+import { isLoginBlocked, recordLoginAttempt } from "../../../../lib/rate-limit";
 
 export const runtime = "nodejs";
 
