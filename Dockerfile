@@ -1,20 +1,17 @@
 # syntax=docker/dockerfile:1.7
 FROM node:20-bookworm-slim AS base
-ENV PNPM_HOME=/pnpm \
-    NEXT_TELEMETRY_DISABLED=1 \
-    NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# --- Dependencies (include devDependencies for build) ---
+# --- Dependencies (include devDependencies for the build stage) ---
 FROM base AS deps
-ENV NODE_ENV=development
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
 
-# --- Builder ---
+# --- Builder (must run with NODE_ENV=production so Next renders production assets) ---
 FROM base AS builder
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
