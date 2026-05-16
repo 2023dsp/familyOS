@@ -194,11 +194,14 @@ export async function syncGoogleCalendar(): Promise<{ pulled: number; pushed: nu
   if (nextSyncToken) await setSetting(SETTING_SYNC_TOKEN, nextSyncToken);
 
   // --- PUSH: chores with dueDate → Google events ---
+  // Only push chores that changed since their last sync, plus brand-new ones.
   const chores = await prisma.chore.findMany({
     where: { status: { in: ["active", "completed"] }, dueDate: { not: null } }
   });
   for (const ch of chores) {
     if (!ch.dueDate) continue;
+    const needsPush = !ch.googleEventId || !ch.googleSyncedAt || ch.updatedAt > ch.googleSyncedAt;
+    if (!needsPush) continue;
     const body: calendar_v3.Schema$Event = {
       summary: (ch.status === "completed" ? "✓ " : "") + ch.title,
       description: ch.notes ?? undefined,
