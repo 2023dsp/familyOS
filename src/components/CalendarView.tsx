@@ -482,7 +482,7 @@ function MonthGrid({
 }
 
 
-function AgendaList({ events }: { events: CalEvent[] }) {
+function AgendaList({ events, onEventClick }: { events: CalEvent[]; onEventClick: (e: CalEvent) => void }) {
   if (events.length === 0) {
     return (
       <div className="card-flat" style={{ padding: 16, borderRadius: 14, borderLeft: "4px solid var(--blue)" }}>
@@ -508,7 +508,14 @@ function AgendaList({ events }: { events: CalEvent[] }) {
           <div key={k} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.1, color: "var(--ink-3)" }}>{label}</span>
             {list.map((e) => (
-              <EventPill key={e.id} event={e} showTime />
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => onEventClick(e)}
+                style={{ all: "unset", cursor: "pointer", display: "block" }}
+              >
+                <EventPill event={e} showTime />
+              </button>
             ))}
           </div>
         );
