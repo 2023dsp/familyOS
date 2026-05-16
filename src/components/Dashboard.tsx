@@ -13,6 +13,7 @@ import { GoogleCalendarCard } from "./GoogleCalendarCard";
 import { AllChoresView } from "./AllChoresView";
 import { CategoriesEditor } from "./CategoriesEditor";
 import { PushSubscribeCard } from "./PushSubscribeCard";
+import { NotificationScheduleCard } from "./NotificationScheduleCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
 import { PullToRefresh } from "./PullToRefresh";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
@@ -992,6 +993,8 @@ function Settings() {
         </SettingsCard>
 
         <PushSubscribeCard />
+
+        <NotificationScheduleCard />
 
         <GoogleCalendarCard />
 
