@@ -309,7 +309,7 @@ function SideNav({
   onAdd
 }: {
   active: string;
-  setActive: (k: "home" | "calendar" | "templates" | "settings") => void;
+  setActive: (k: "home" | "calendar" | "all" | "templates" | "settings") => void;
   onAdd: () => void;
 }) {
   const items: Array<{ id: "home" | "calendar" | "all" | "templates" | "settings"; icon: string; label: string }> = [
