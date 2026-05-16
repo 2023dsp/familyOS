@@ -14,6 +14,7 @@ import { AllChoresView } from "./AllChoresView";
 import { CategoriesEditor } from "./CategoriesEditor";
 import { PushSubscribeCard } from "./PushSubscribeCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
+import { PullToRefresh } from "./PullToRefresh";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
 import { CategoriesProvider, useCategories } from "./CategoriesContext";
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
@@ -88,7 +89,21 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
-  const [tab, setTab] = useState<"home" | "calendar" | "all" | "templates" | "settings">("home");
+  const [tab, _setTab] = useState<"home" | "calendar" | "all" | "templates" | "settings">("home");
+  type Tab = "home" | "calendar" | "all" | "templates" | "settings";
+  const setTab = useCallback((next: Tab) => {
+    _setTab((prev) => {
+      if (prev === next) return prev;
+      try {
+        if (typeof window !== "undefined") {
+          window.history.pushState({ familyosTab: next }, "", `#${next}`);
+        }
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
   const [filter, setFilter] = useState<"today" | "upcoming" | "mine" | "all">("today");
   const [isWide, setIsWide] = useState(false);
   const router = useRouter();
@@ -100,6 +115,47 @@ export function Dashboard() {
     mq.addEventListener("change", fn);
     return () => mq.removeEventListener("change", fn);
   }, []);
+
+  // Push a history entry whenever a modal opens, so the back button closes it.
+  useEffect(() => {
+    if (adding || opened) {
+      try {
+        window.history.pushState({ familyosModal: true }, "", window.location.hash || "#home");
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adding, opened]);
+
+  // Sync initial tab from URL hash, listen to back/forward navigation.
+  useEffect(() => {
+    function readHash(): Tab | null {
+      const h = window.location.hash.replace(/^#/, "");
+      if (h === "home" || h === "calendar" || h === "all" || h === "templates" || h === "settings") return h;
+      return null;
+    }
+    const initial = readHash();
+    if (initial) _setTab(initial);
+    else window.history.replaceState({ familyosTab: "home" }, "", "#home");
+
+    const onPop = () => {
+      // If a modal is open, close the topmost one first.
+      if (opened) {
+        setOpened(null);
+        return;
+      }
+      if (adding) {
+        setAdding(null);
+        return;
+      }
+      const t = readHash() ?? "home";
+      _setTab(t);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, adding]);
 
   const load = useCallback(async () => {
     const [cRes, tRes, sRes, eRes, catRes] = await Promise.all([
@@ -188,7 +244,11 @@ export function Dashboard() {
       <Header dateLabel={dateLabel} onLogout={logout} />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
-        <main className="scroll" style={{ flex: 1, padding: isWide ? "16px 36px 60px" : "12px 16px 76px", minWidth: 0 }}>
+        <PullToRefresh
+          onRefresh={load}
+          className="scroll"
+          style={{ flex: 1, padding: isWide ? "16px 36px 60px" : "12px 16px 76px", minWidth: 0 }}
+        >
           {tab === "home" && (
             <Home
               isWide={isWide}
@@ -238,7 +298,7 @@ export function Dashboard() {
             />
           )}
           {tab === "settings" && <Settings />}
-        </main>
+        </PullToRefresh>
       </div>
 
       {!isWide && <MobileTabBar active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
