@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Icon } from "./Icon";
 import { Segmented } from "./Segmented";
 import { AddEventModal } from "./AddEventModal";
+import { DayEventsModal } from "./DayEventsModal";
 
 export type CalEvent = {
   id: string;
@@ -60,7 +61,7 @@ function addDays(d: Date, n: number) {
 }
 
 function fmtTime(d: Date) {
-  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -69,6 +70,7 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
   const [mode, setMode] = useState<Mode>(isWide ? "week" : "list");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [addingFor, setAddingFor] = useState<Date | null>(null);
+  const [browsingDay, setBrowsingDay] = useState<Date | null>(null);
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -122,18 +124,30 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
         </div>
       </div>
 
-      {mode === "week" && <WeekGrid anchor={anchor} events={events} onSlotClick={(d) => setAddingFor(d)} isWide={isWide} />}
-      {mode === "month" && <MonthGrid anchor={anchor} events={events} onDayClick={(d) => setAddingFor(d)} isWide={isWide} />}
+      {mode === "week" && <WeekGrid anchor={anchor} events={events} onSlotClick={(d) => setBrowsingDay(d)} isWide={isWide} />}
+      {mode === "month" && <MonthGrid anchor={anchor} events={events} onDayClick={(d) => setBrowsingDay(d)} isWide={isWide} />}
       {mode === "list" && <AgendaList events={events} />}
 
       <Legend />
 
+      {browsingDay && !addingFor && (
+        <DayEventsModal
+          date={browsingDay}
+          events={events}
+          onClose={() => setBrowsingDay(null)}
+          onAdd={() => setAddingFor(browsingDay)}
+          onChanged={onChanged}
+        />
+      )}
       {addingFor && (
         <AddEventModal
           initialDate={addingFor}
-          onClose={() => setAddingFor(null)}
+          onClose={() => {
+            setAddingFor(null);
+          }}
           onSaved={() => {
             setAddingFor(null);
+            setBrowsingDay(null);
             onChanged();
           }}
         />
