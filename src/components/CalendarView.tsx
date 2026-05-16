@@ -127,7 +127,22 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
 
       {mode === "week" && <WeekGrid anchor={anchor} events={events} onSlotClick={(d) => setBrowsingDay(d)} isWide={isWide} />}
       {mode === "month" && <MonthGrid anchor={anchor} events={events} onDayClick={(d) => setBrowsingDay(d)} isWide={isWide} />}
-      {mode === "list" && <AgendaList events={events} />}
+      {mode === "list" && (
+        <AgendaList
+          events={events}
+          onEventClick={(e) =>
+            setEditing({
+              id: e.id,
+              title: e.title,
+              description: null,
+              startsAt: e.startsAt,
+              endsAt: e.endsAt,
+              allDay: e.allDay,
+              persona: e.persona ?? null
+            })
+          }
+        />
+      )}
 
       <Legend />
 
