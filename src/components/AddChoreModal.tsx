@@ -13,28 +13,30 @@ const provider = new RuleSuggestionProvider();
 
 const ICON_PICK = ["broom", "dishes", "trash", "plant", "drop", "bulb", "cart", "car", "sofa", "card", "book", "tools"];
 
-const DUE_OPTIONS = [
-  { value: "none", label: "None" },
-  { value: "today", label: "Today" },
-  { value: "tomorrow", label: "Tomorrow" },
-  { value: "weekend", label: "Weekend" }
-] as const;
+function toLocalDateInputValue(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
-function dueToDate(v: string | null): string | null {
-  if (!v || v === "none") return null;
+function quickDate(kind: "today" | "tomorrow" | "weekend"): string {
   const d = new Date();
-  d.setHours(20, 0, 0, 0);
-  if (v === "today") return d.toISOString();
-  if (v === "tomorrow") {
-    d.setDate(d.getDate() + 1);
-    return d.toISOString();
-  }
-  if (v === "weekend") {
+  d.setHours(0, 0, 0, 0);
+  if (kind === "tomorrow") d.setDate(d.getDate() + 1);
+  else if (kind === "weekend") {
     const wantSat = (6 - d.getDay() + 7) % 7 || 7;
     d.setDate(d.getDate() + wantSat);
-    return d.toISOString();
   }
-  return null;
+  return toLocalDateInputValue(d);
+}
+
+function dueInputToIso(v: string): string | null {
+  if (!v) return null;
+  const [y, m, day] = v.split("-").map((n) => parseInt(n, 10));
+  if (!y || !m || !day) return null;
+  const d = new Date(y, m - 1, day, 20, 0, 0, 0);
+  return d.toISOString();
 }
 
 export type AddChorePrefill = {
@@ -60,7 +62,7 @@ export function AddChoreModal({
   const [category, setCategory] = useState(prefill?.category ?? "cleaning");
   const [assignee, setAssignee] = useState<AssigneeSlug>("both");
   const [priority, setPriority] = useState<PriorityKey>(prefill?.priority ?? "medium");
-  const [due, setDue] = useState<string>("today");
+  const [due, setDue] = useState<string>(quickDate("today"));
   const [recurInterval, setRecurInterval] = useState<number | null>(prefill?.recurInterval ?? null);
   const [recurUnit, setRecurUnit] = useState<RecurrenceUnit | null>(prefill?.recurUnit ?? null);
   const [notes, setNotes] = useState("");
@@ -84,9 +86,9 @@ export function AddChoreModal({
     if (k === "recurInterval" && typeof v === "number") setRecurInterval(v);
     if (k === "recurUnit" && typeof v === "string") setRecurUnit(v as RecurrenceUnit);
     if (k === "dueHint") {
-      if (v === "today") setDue("today");
-      else if (v === "tomorrow") setDue("tomorrow");
-      else if (v === "weekend") setDue("weekend");
+      if (v === "today") setDue(quickDate("today"));
+      else if (v === "tomorrow") setDue(quickDate("tomorrow"));
+      else if (v === "weekend") setDue(quickDate("weekend"));
     }
     setDismissed((d) => ({ ...d, [k]: true }));
   };
@@ -125,7 +127,7 @@ export function AddChoreModal({
           category,
           priority,
           assigneeSlug: assignee,
-          dueDate: dueToDate(due),
+          dueDate: dueInputToIso(due),
           isRecurring: hasRecur,
           recurInterval: recurInterval ?? undefined,
           recurUnit: recurUnit ?? undefined
@@ -292,11 +294,7 @@ export function AddChoreModal({
             />
           </Section>
           <Section label="Deadline" style={{ flex: 1, minWidth: 220 }}>
-            <Segmented
-              value={due as (typeof DUE_OPTIONS)[number]["value"]}
-              onChange={(v) => setDue(v)}
-              options={DUE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            />
+            <DueDatePicker value={due} onChange={setDue} />
           </Section>
         </div>
 
@@ -360,6 +358,52 @@ function Section({ label, children, style }: { label: string; children: React.Re
     <div style={{ display: "flex", flexDirection: "column", gap: 8, ...style }}>
       <span style={{ color: "var(--ink-3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>{label}</span>
       {children}
+    </div>
+  );
+}
+
+function DueDatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const today = quickDate("today");
+  const tomorrow = quickDate("tomorrow");
+  const weekend = quickDate("weekend");
+  const options: Array<{ key: string; label: string; v: string }> = [
+    { key: "none", label: "None", v: "" },
+    { key: "today", label: "Today", v: today },
+    { key: "tomorrow", label: "Tomorrow", v: tomorrow },
+    { key: "weekend", label: "Weekend", v: weekend }
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {options.map((o) => {
+          const sel = value === o.v;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => onChange(o.v)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 99,
+                background: sel ? "var(--surface-2)" : "rgba(0,0,0,0.04)",
+                border: sel ? "1.5px solid var(--ink-2)" : "1.5px solid transparent",
+                fontWeight: 700,
+                fontSize: 13,
+                color: sel ? "var(--ink)" : "var(--ink-2)"
+              }}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      <input
+        type="date"
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ fontSize: 14, padding: "10px 14px" }}
+      />
     </div>
   );
 }

@@ -43,25 +43,45 @@ export function ChoreDetailModal({ chore, onClose, onChanged }: { chore: ChoreRo
     }
   }
 
-  async function postpone() {
+  async function setDue(newDueIso: string | null) {
     setBusy(true);
+    setError(null);
     try {
-      const next = new Date();
-      next.setDate(next.getDate() + 1);
-      next.setHours(20, 0, 0, 0);
       const res = await fetch(`/api/chores/${chore.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dueDate: next.toISOString() })
+        body: JSON.stringify({ dueDate: newDueIso })
       });
       if (!res.ok) throw new Error("Failed");
       onChanged();
-      onClose();
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+
+  function localDateInputValue(d: Date | null): string {
+    if (!d) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function inputToIso(v: string): string | null {
+    if (!v) return null;
+    const [y, m, d] = v.split("-").map((n) => parseInt(n, 10));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 20, 0, 0, 0).toISOString();
+  }
+
+  async function postpone() {
+    const base = chore.dueDate ? new Date(chore.dueDate) : new Date();
+    base.setDate(base.getDate() + 1);
+    base.setHours(20, 0, 0, 0);
+    await setDue(base.toISOString());
+    onClose();
   }
 
   async function archive() {
@@ -151,7 +171,27 @@ export function ChoreDetailModal({ chore, onClose, onChanged }: { chore: ChoreRo
             <span style={{ fontWeight: 700, fontSize: 13 }}>{PRIORITIES[chore.priority].label}</span>
           </span>
         } />
-        <DetailRow label="Due" value={<span style={{ fontWeight: 700 }}>{due || "—"}</span>} />
+        <DetailRow
+          label="Due"
+          value={
+            <input
+              type="date"
+              value={localDateInputValue(chore.dueDate ? new Date(chore.dueDate) : null)}
+              onChange={(e) => setDue(inputToIso(e.target.value))}
+              disabled={busy}
+              style={{
+                border: "1.5px solid var(--line-2)",
+                background: "var(--surface)",
+                color: "var(--ink)",
+                padding: "6px 10px",
+                borderRadius: 12,
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: "inherit"
+              }}
+            />
+          }
+        />
         <DetailRow label="Repeats" value={recur ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
             <Icon name="refresh" color="var(--olive)" size={14} /> {recur}

@@ -67,8 +67,19 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
   const c = await prisma.chore.findUnique({ where: { id } });
   if (!c) throw new Error("Chore not found");
 
+  // Idempotent: already completed → no-op, no new completion row, no new recurring instance
+  if (c.status === "completed") {
+    return { completed: c, next: null };
+  }
+
   const now = new Date();
-  const memberId = memberSlug ? (await prisma.familyMember.findUnique({ where: { slug: memberSlug } }))?.id ?? null : null;
+  // Use the explicit memberSlug if provided, otherwise fall back to the chore's assignee.
+  let memberId: string | null = null;
+  if (memberSlug) {
+    memberId = (await prisma.familyMember.findUnique({ where: { slug: memberSlug } }))?.id ?? null;
+  } else if (c.assigneeId) {
+    memberId = c.assigneeId;
+  }
 
   await prisma.choreCompletion.create({
     data: {
@@ -115,6 +126,14 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
 }
 
 export async function uncompleteChore(id: string): Promise<Chore> {
+  // Remove the most recent completion row so the count stays honest when toggling.
+  const latest = await prisma.choreCompletion.findFirst({
+    where: { choreId: id },
+    orderBy: { completedAt: "desc" }
+  });
+  if (latest) {
+    await prisma.choreCompletion.delete({ where: { id: latest.id } });
+  }
   return prisma.chore.update({
     where: { id },
     data: { status: "active", completedAt: null }
