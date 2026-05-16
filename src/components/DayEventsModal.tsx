@@ -31,7 +31,7 @@ function softFor(hex: string): string {
 }
 
 function fmtTime(d: Date) {
-  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function DayEventsModal({
