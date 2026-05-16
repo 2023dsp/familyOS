@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { nextOccurrence } from "./recurrence";
+import { sendToAll } from "./push";
 import type { Chore, RecurrenceUnit } from "@prisma/client";
+
+function notifyAsync(title: string, body: string, tag: string) {
+  // Fire-and-forget — never block a CRUD call on push delivery.
+  void sendToAll({ title, body, url: "/", tag }).catch(() => {});
+}
 
 export const choreInputSchema = z.object({
   title: z.string().min(1).max(120),
@@ -29,7 +35,7 @@ async function resolveAssigneeId(slug?: string | null): Promise<string | null> {
 
 export async function createChore(input: ChoreInput): Promise<Chore> {
   const assigneeId = await resolveAssigneeId(input.assigneeSlug);
-  return prisma.chore.create({
+  const chore = await prisma.chore.create({
     data: {
       title: input.title.trim(),
       notes: input.notes ?? null,
@@ -46,6 +52,9 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
       important: input.important ?? false
     }
   });
+  const tag = input.important ? "Important" : "New chore";
+  notifyAsync(`+ ${tag}`, chore.title, `chore-create-${chore.id}`);
+  return chore;
 }
 
 export async function updateChore(id: string, input: Partial<ChoreInput>): Promise<Chore> {
@@ -97,6 +106,12 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
     where: { id: c.id },
     data: { status: "completed", completedAt: now }
   });
+
+  const member = c.assigneeId
+    ? await prisma.familyMember.findUnique({ where: { id: c.assigneeId } })
+    : null;
+  const by = member && member.isPerson ? ` · ${member.name}` : "";
+  notifyAsync("✓ Completed", `${c.title}${by}`, `chore-complete-${c.id}`);
 
   let nextChore: Chore | null = null;
   if (c.isRecurring && c.recurInterval && c.recurUnit) {
