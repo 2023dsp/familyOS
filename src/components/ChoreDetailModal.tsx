@@ -206,7 +206,7 @@ export function ChoreDetailModal({
         </div>
       </div>
 
-      <div style={{ padding: "0 24px" }}>
+      <div className="scroll" style={{ padding: "0 24px", flex: 1, minHeight: 0, overflowY: "auto" }}>
         <Section label="Assigned to">
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {(["davide", "luize", "both", "unassigned"] as AssigneeSlug[]).map((a) => {

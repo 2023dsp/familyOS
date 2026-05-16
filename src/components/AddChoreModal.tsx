@@ -185,7 +185,7 @@ export function AddChoreModal({
         </button>
       </div>
 
-      <div className="scroll" style={{ padding: "8px 24px 16px", display: "flex", flexDirection: "column", gap: 18, flex: 1 }}>
+      <div className="scroll" style={{ padding: "8px 24px 16px", display: "flex", flexDirection: "column", gap: 18, flex: 1, minHeight: 0, overflowY: "auto" }}>
         <div style={{ position: "relative" }}>
           <input
             className="input"

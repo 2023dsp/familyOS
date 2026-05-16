@@ -31,7 +31,7 @@ export function ModalBackdrop({
         alignItems: "flex-start",
         justifyContent: "center",
         zIndex: 100,
-        padding: "32px 16px",
+        padding: "24px 16px",
         overflowY: "auto",
         animation: "fadeIn 0.18s ease both"
       }}
@@ -46,9 +46,11 @@ export function ModalBackdrop({
           width: "min(720px, 100%)",
           marginLeft: "auto",
           marginRight: "auto",
+          maxHeight: "calc(100dvh - 48px)",
           boxShadow: "var(--shadow-xl)",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          overflow: "hidden"
         }}
       >
         {children}

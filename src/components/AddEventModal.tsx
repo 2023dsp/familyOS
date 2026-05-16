@@ -147,7 +147,7 @@ export function AddEventModal({
         </button>
       </div>
 
-      <div className="scroll" style={{ padding: "8px 24px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="scroll" style={{ padding: "8px 24px 16px", display: "flex", flexDirection: "column", gap: 16, flex: 1, minHeight: 0, overflowY: "auto" }}>
         <input
           className="input"
           placeholder='Title (e.g. "Davide serata fuori")'

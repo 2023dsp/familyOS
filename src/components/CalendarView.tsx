@@ -307,12 +307,15 @@ function WeekGrid({
             onClick={() => onSlotClick(new Date(d))}
             className="card"
             style={{
-              minHeight: 260,
+              minHeight: 160,
               padding: 10,
               textAlign: "left",
               cursor: "pointer",
               background: isToday ? "linear-gradient(160deg, var(--terracotta-soft), var(--surface))" : undefined,
-              borderColor: isToday ? "var(--terracotta)" : undefined
+              borderColor: isToday ? "var(--terracotta)" : undefined,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
