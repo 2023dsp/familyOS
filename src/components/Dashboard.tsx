@@ -9,6 +9,7 @@ import { ChoreRow, type ChoreRowData } from "./ChoreRow";
 import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
 import { ChoreDetailModal } from "./ChoreDetailModal";
 import { ThemeToggle } from "./ThemeToggle";
+import { GoogleCalendarCard } from "./GoogleCalendarCard";
 import { CATEGORIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
@@ -50,6 +51,17 @@ type Stats = {
   score: number;
 };
 
+type CalEvent = {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  allDay: boolean;
+  calendar: string | null;
+  color: string | null;
+  source: string;
+};
+
 function toRowData(c: ApiChore): ChoreRowData {
   const slug = (c.assignee?.slug ?? "unassigned") as AssigneeSlug;
   return {
@@ -72,6 +84,7 @@ export function Dashboard() {
   const [chores, setChores] = useState<ApiChore[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [events, setEvents] = useState<CalEvent[]>([]);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
   const [tab, setTab] = useState<"home" | "calendar" | "templates" | "settings">("home");
@@ -88,14 +101,16 @@ export function Dashboard() {
   }, []);
 
   const load = useCallback(async () => {
-    const [cRes, tRes, sRes] = await Promise.all([
+    const [cRes, tRes, sRes, eRes] = await Promise.all([
       fetch("/api/chores?status=all", { cache: "no-store" }),
       fetch("/api/templates", { cache: "no-store" }),
-      fetch("/api/stats", { cache: "no-store" })
+      fetch("/api/stats", { cache: "no-store" }),
+      fetch("/api/calendar/events", { cache: "no-store" })
     ]);
     if (cRes.ok) setChores((await cRes.json()).chores);
     if (tRes.ok) setTemplates((await tRes.json()).templates);
     if (sRes.ok) setStats(await sRes.json());
+    if (eRes.ok) setEvents((await eRes.json()).events);
   }, []);
 
   useEffect(() => {
@@ -169,12 +184,13 @@ export function Dashboard() {
               filter={filter}
               setFilter={setFilter}
               filtered={filtered.map(toRowData)}
+              events={events}
               onToggle={toggle}
               onOpen={(c) => setOpened(c)}
               onAdd={() => setAdding({})}
             />
           )}
-          {tab === "calendar" && <CalendarView />}
+          {tab === "calendar" && <CalendarView events={events} />}
           {tab === "templates" && (
             <Templates
               templates={templates}
@@ -433,6 +449,7 @@ type HomeProps = {
   filter: "today" | "upcoming" | "mine" | "all";
   setFilter: (v: HomeProps["filter"]) => void;
   filtered: ChoreRowData[];
+  events: CalEvent[];
   onToggle: (id: string, done: boolean) => void;
   onOpen: (c: ChoreRowData) => void;
   onAdd: () => void;
@@ -544,9 +561,9 @@ function TabletHome(p: HomeProps) {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>What&apos;s on</h2>
-            <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> Calendar (placeholder)</span>
+            <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> {p.events.some((e) => e.source === "google") ? "Google Calendar" : "Local"}</span>
           </div>
-          <CalendarStub />
+          <EventList events={p.events.slice(0, 6)} />
         </div>
       </div>
 
@@ -679,19 +696,65 @@ function RecurringList({ rows, dense }: { rows: ApiChore[]; dense?: boolean }) {
   );
 }
 
-function CalendarStub() {
+function EventList({ events }: { events: CalEvent[] }) {
+  if (events.length === 0) {
+    return (
+      <div className="card-flat" style={{ padding: 14, borderRadius: 14, borderLeft: "4px solid var(--blue)" }}>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>
+          No upcoming events. Connect Google Calendar in Settings.
+        </span>
+      </div>
+    );
+  }
+  const groups = new Map<string, CalEvent[]>();
+  for (const e of events) {
+    const d = new Date(e.startsAt);
+    const key = d.toDateString();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(e);
+  }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {["No events synced yet.", "Connect Google Calendar in Settings to see what's on."].map((line, i) => (
-        <div key={i} className="card-flat" style={{ padding: 12, borderRadius: 14, borderLeft: "4px solid var(--blue)" }}>
-          <span style={{ fontWeight: 700, fontSize: 13 }}>{line}</span>
-        </div>
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {Array.from(groups.entries()).map(([key, list]) => {
+        const d = new Date(key);
+        const isToday = new Date().toDateString() === key;
+        const label = isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+        return (
+          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.1, color: "var(--ink-3)" }}>{label}</span>
+            {list.map((e) => {
+              const s = new Date(e.startsAt);
+              const timeLabel = e.allDay
+                ? "All day"
+                : s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+              return (
+                <div
+                  key={e.id}
+                  style={{
+                    display: "flex",
+                    padding: "10px 12px",
+                    background: "var(--surface-2)",
+                    borderRadius: 14,
+                    borderLeft: `4px solid ${e.color ?? "var(--blue)"}`,
+                    gap: 12,
+                    alignItems: "center"
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{timeLabel} · {e.calendar ?? e.source}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function CalendarView() {
+function CalendarView({ events }: { events: CalEvent[] }) {
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div>
@@ -701,10 +764,7 @@ function CalendarView() {
         </h1>
       </div>
       <div className="card">
-        <p style={{ margin: 0, color: "var(--ink-2)" }}>
-          Calendar preview is read-only in this MVP. Once you connect Google Calendar (see Settings), upcoming
-          events for the household will appear here next to chores.
-        </p>
+        <EventList events={events} />
       </div>
     </div>
   );
@@ -786,8 +846,9 @@ function Settings() {
           <SettingsRow label="Shared password" desc="Set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
         </SettingsCard>
 
-        <SettingsCard title="Connections" icon="link">
-          <SettingsRow label="Google Calendar" desc="Not connected" trailing={<span className="pill">Coming soon</span>} />
+        <GoogleCalendarCard />
+
+        <SettingsCard title="Other connections" icon="link">
           <SettingsRow label="OpenAI suggestions" desc="Optional, falls back to local rules" trailing={<span className="pill">Optional</span>} />
         </SettingsCard>
       </div>
