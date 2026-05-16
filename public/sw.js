@@ -1,5 +1,5 @@
-/* FamilyOS service worker — minimal app shell + offline fallback */
-const CACHE = "familyos-v1";
+/* FamilyOS service worker — app shell + offline fallback + web push */
+const CACHE = "familyos-v2";
 const APP_SHELL = ["/", "/login", "/manifest.webmanifest", "/icons/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -23,11 +23,8 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-
-  // API routes: always go to network. Don't cache responses (auth-sensitive).
   if (url.pathname.startsWith("/api/")) return;
 
-  // Network-first for HTML navigations, fallback to cache
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
@@ -44,7 +41,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache-first
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
@@ -58,5 +54,40 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
     })
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = { title: "FamilyOS", body: "" };
+  try {
+    if (event.data) payload = event.data.json();
+  } catch {
+    if (event.data) payload.body = event.data.text();
+  }
+  const opts = {
+    body: payload.body,
+    icon: "/icons/icon.svg",
+    badge: "/icons/icon.svg",
+    tag: payload.tag || "familyos",
+    data: { url: payload.url || "/" },
+    requireInteraction: false
+  };
+  event.waitUntil(self.registration.showNotification(payload.title || "FamilyOS", opts));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of all) {
+        if (c.url.includes(self.location.origin) && "focus" in c) {
+          c.navigate(url).catch(() => {});
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })()
   );
 });

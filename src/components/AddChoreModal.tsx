@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { Segmented } from "./Segmented";
-import { ASSIGNEES, CATEGORIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
-import { RuleSuggestionProvider, type Suggestion } from "../lib/suggest";
+import { ASSIGNEES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { useCategories } from "./CategoriesContext";
+import type { Suggestion } from "../lib/suggest";
 import type { RecurrenceUnit } from "@prisma/client";
-
-const provider = new RuleSuggestionProvider();
 
 const ICON_PICK = ["broom", "dishes", "trash", "plant", "drop", "bulb", "cart", "car", "sofa", "card", "book", "tools"];
 
@@ -57,6 +56,7 @@ export function AddChoreModal({
   onSaved: () => void;
   prefill?: AddChorePrefill;
 }) {
+  const categories = useCategories();
   const [text, setText] = useState(prefill?.title ?? "");
   const [icon, setIcon] = useState(prefill?.icon ?? "broom");
   const [category, setCategory] = useState(prefill?.category ?? "cleaning");
@@ -71,13 +71,39 @@ export function AddChoreModal({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const suggestion: Suggestion = useMemo(() => provider.suggest(text), [text]);
+  const [suggestion, setSuggestion] = useState<Suggestion>({});
+  const [suggestLoading, setSuggestLoading] = useState(false);
 
   useEffect(() => {
-    if (suggestion.dueHint && !dismissed.due) {
-      // do nothing; chip user-driven accept
+    if (!text || text.trim().length < 3) {
+      setSuggestion({});
+      return;
     }
-  }, [suggestion, dismissed]);
+    setSuggestLoading(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/suggest", {
+          method: "POST",
+          signal: ctrl.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: text })
+        });
+        if (res.ok) {
+          const j = await res.json();
+          setSuggestion(j.suggestion ?? {});
+        }
+      } catch {
+        /* aborted or network */
+      } finally {
+        setSuggestLoading(false);
+      }
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [text]);
 
   const accept = (k: keyof Suggestion) => {
     const v = suggestion[k];
@@ -174,9 +200,11 @@ export function AddChoreModal({
           </span>
         </div>
 
-        {(suggestion.icon || suggestion.category || suggestion.recurInterval || suggestion.priority || suggestion.dueHint) && (
+        {(suggestLoading || suggestion.icon || suggestion.category || suggestion.recurInterval || suggestion.priority || suggestion.dueHint) && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            <span style={{ color: "var(--ink-3)", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.06 }}>Suggested</span>
+            <span style={{ color: "var(--ink-3)", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.06 }}>
+              {suggestLoading ? "Thinking…" : "Suggested"}
+            </span>
             {suggestion.icon && !dismissed.icon && (
               <AIChip label={`Icon: ${suggestion.icon}`} onClick={() => accept("icon")} />
             )}
@@ -226,7 +254,7 @@ export function AddChoreModal({
 
         <Section label="Category">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {CATEGORIES.map((c) => {
+            {categories.map((c) => {
               const sel = category === c.id;
               return (
                 <button

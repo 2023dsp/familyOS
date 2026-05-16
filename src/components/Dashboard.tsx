@@ -10,7 +10,11 @@ import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
 import { ChoreDetailModal } from "./ChoreDetailModal";
 import { ThemeToggle } from "./ThemeToggle";
 import { GoogleCalendarCard } from "./GoogleCalendarCard";
-import { CATEGORIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { AllChoresView } from "./AllChoresView";
+import { CategoriesEditor } from "./CategoriesEditor";
+import { PushSubscribeCard } from "./PushSubscribeCard";
+import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
+import { CategoriesProvider, useCategories } from "./CategoriesContext";
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
@@ -87,10 +91,11 @@ export function Dashboard() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [categories, setCategories] = useState<Category[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
-  const [tab, setTab] = useState<"home" | "calendar" | "templates" | "settings">("home");
+  const [tab, setTab] = useState<"home" | "calendar" | "all" | "templates" | "settings">("home");
   const [filter, setFilter] = useState<"today" | "upcoming" | "mine" | "all">("today");
   const [isWide, setIsWide] = useState(false);
   const router = useRouter();
@@ -104,16 +109,29 @@ export function Dashboard() {
   }, []);
 
   const load = useCallback(async () => {
-    const [cRes, tRes, sRes, eRes] = await Promise.all([
+    const [cRes, tRes, sRes, eRes, catRes] = await Promise.all([
       fetch("/api/chores?status=all", { cache: "no-store" }),
       fetch("/api/templates", { cache: "no-store" }),
       fetch("/api/stats", { cache: "no-store" }),
-      fetch("/api/calendar/events", { cache: "no-store" })
+      fetch("/api/calendar/events", { cache: "no-store" }),
+      fetch("/api/categories", { cache: "no-store" })
     ]);
     if (cRes.ok) setChores((await cRes.json()).chores);
     if (tRes.ok) setTemplates((await tRes.json()).templates);
     if (sRes.ok) setStats(await sRes.json());
     if (eRes.ok) setEvents((await eRes.json()).events);
+    if (catRes.ok) {
+      const data = await catRes.json();
+      type ApiCategory = { slug: string; label: string; icon: string; color: string; colorSoft: string };
+      const mapped: Category[] = (data.categories as ApiCategory[]).map((c) => ({
+        id: c.slug,
+        label: c.label,
+        icon: c.icon,
+        color: c.color,
+        soft: c.colorSoft
+      }));
+      setCategories(mapped);
+    }
     setLoading(false);
   }, []);
 
@@ -172,6 +190,7 @@ export function Dashboard() {
   const dateLabel = today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   return (
+    <CategoriesProvider value={categories}>
     <div className={`tod-${hello.tod}`} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header dateLabel={dateLabel} onLogout={logout} />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
@@ -201,6 +220,14 @@ export function Dashboard() {
             />
           )}
           {tab === "calendar" && <CalendarView events={events} />}
+          {tab === "all" && (
+            <AllChoresView
+              chores={chores.filter((c) => c.status !== "archived").map(toRowData)}
+              isWide={isWide}
+              onToggle={toggle}
+              onOpen={(c) => setOpened(c)}
+            />
+          )}
           {tab === "templates" && (
             <Templates
               templates={templates}
@@ -226,6 +253,7 @@ export function Dashboard() {
       {adding && <AddChoreModal onClose={() => setAdding(null)} onSaved={() => { setAdding(null); load(); }} prefill={adding} />}
       {opened && <ChoreDetailModal chore={opened} onClose={() => setOpened(null)} onChanged={load} />}
     </div>
+    </CategoriesProvider>
   );
 }
 
@@ -284,9 +312,10 @@ function SideNav({
   setActive: (k: "home" | "calendar" | "templates" | "settings") => void;
   onAdd: () => void;
 }) {
-  const items: Array<{ id: "home" | "calendar" | "templates" | "settings"; icon: string; label: string }> = [
+  const items: Array<{ id: "home" | "calendar" | "all" | "templates" | "settings"; icon: string; label: string }> = [
     { id: "home", icon: "home", label: "Home" },
     { id: "calendar", icon: "calendar", label: "Calendar" },
+    { id: "all", icon: "archive", label: "All" },
     { id: "templates", icon: "layers", label: "Templates" },
     { id: "settings", icon: "settings", label: "Settings" }
   ];
@@ -372,13 +401,13 @@ function MobileTabBar({
   onAdd
 }: {
   active: string;
-  setActive: (k: "home" | "calendar" | "templates" | "settings") => void;
+  setActive: (k: "home" | "calendar" | "all" | "templates" | "settings") => void;
   onAdd: () => void;
 }) {
-  const items: Array<{ id: "home" | "calendar" | "templates" | "settings"; icon: string; label: string }> = [
+  const items: Array<{ id: "home" | "calendar" | "all" | "templates" | "settings"; icon: string; label: string }> = [
     { id: "home", icon: "home", label: "Home" },
+    { id: "all", icon: "archive", label: "All" },
     { id: "calendar", icon: "calendar", label: "Calendar" },
-    { id: "templates", icon: "layers", label: "Templates" },
     { id: "settings", icon: "settings", label: "Settings" }
   ];
   return (
@@ -842,6 +871,7 @@ function CalendarView({ events }: { events: CalEvent[] }) {
 }
 
 function Templates({ templates, isWide, onPick }: { templates: Template[]; isWide: boolean; onPick: (t: Template) => void }) {
+  const categories = useCategories();
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div>
@@ -851,7 +881,7 @@ function Templates({ templates, isWide, onPick }: { templates: Template[]; isWid
       </div>
       <div style={{ display: "grid", gridTemplateColumns: isWide ? "repeat(4, 1fr)" : "1fr 1fr", gap: 14 }}>
         {templates.map((t) => {
-          const cat = CATEGORIES.find((c) => c.id === t.category);
+          const cat = categories.find((c) => c.id === t.category);
           return (
             <button
               key={t.id}
@@ -885,6 +915,7 @@ function Templates({ templates, isWide, onPick }: { templates: Template[]; isWid
 }
 
 function Settings() {
+  const categories = useCategories();
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div>
@@ -898,24 +929,13 @@ function Settings() {
           <SettingsRow leading={<Avatar who="unassigned" size={32} />} label="Add a member" desc="Future child / guest mode" trailing={<span className="pill">Coming soon</span>} />
         </SettingsCard>
 
-        <SettingsCard title="Categories" icon="layers">
-          {CATEGORIES.map((c) => (
-            <SettingsRow
-              key={c.id}
-              leading={
-                <span style={{ width: 32, height: 32, borderRadius: 10, background: c.soft, display: "grid", placeItems: "center" }}>
-                  <Icon name={c.icon} color={c.color} size={18} />
-                </span>
-              }
-              label={c.label}
-              desc=""
-            />
-          ))}
-        </SettingsCard>
+        <CategoriesEditor />
 
         <SettingsCard title="Family password" icon="user">
           <SettingsRow label="Shared password" desc="Set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
         </SettingsCard>
+
+        <PushSubscribeCard />
 
         <GoogleCalendarCard />
 

@@ -2,7 +2,8 @@
 
 import { Avatar } from "./Avatar";
 import { Icon } from "./Icon";
-import { CATEGORIES, PRIORITIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { PRIORITIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { useCategories } from "./CategoriesContext";
 import { humanDue } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
@@ -69,7 +70,8 @@ export function ChoreRow({
   onOpen?: (c: ChoreRowData) => void;
   dense?: boolean;
 }) {
-  const cat = CATEGORIES.find((c) => c.id === chore.category);
+  const categories = useCategories();
+  const cat = categories.find((c) => c.id === chore.category);
   const due = humanDue(chore.dueDate ? new Date(chore.dueDate) : null);
   const recurLabel =
     chore.isRecurring && chore.recurInterval && chore.recurUnit

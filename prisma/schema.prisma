@@ -38,6 +38,19 @@ model FamilyMember {
   completions ChoreCompletion[]
 }
 
+model Category {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  label     String
+  icon      String
+  color     String   // hex like "#C97B5B"
+  colorSoft String   // hex like "#E8C2AC"
+  sortOrder Int      @default(0)
+  isCustom  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model ChoreTemplate {
   id              String         @id @default(cuid())
   title           String
@@ -116,6 +129,17 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  label      String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
 }
 
 model LoginAttempt {

@@ -5,13 +5,15 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { PriorityDots } from "./ChoreRow";
-import { ASSIGNEES, CATEGORIES, PRIORITIES, type AssigneeSlug } from "../lib/catalog";
+import { ASSIGNEES, PRIORITIES, type AssigneeSlug } from "../lib/catalog";
+import { useCategories } from "./CategoriesContext";
 import { formatRecurrence } from "../lib/recurrence";
 import { humanDue } from "../lib/date";
 import type { ChoreRowData } from "./ChoreRow";
 
 export function ChoreDetailModal({ chore, onClose, onChanged }: { chore: ChoreRowData; onClose: () => void; onChanged: () => void }) {
-  const cat = CATEGORIES.find((c) => c.id === chore.category);
+  const categories = useCategories();
+  const cat = categories.find((c) => c.id === chore.category);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

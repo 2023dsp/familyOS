@@ -15,15 +15,18 @@ export type Category = {
   soft: string;
 };
 
+// Fallback categories — used if the API hasn't returned yet. Real categories
+// live in the DB and are managed via the Settings screen. The shape matches
+// what /api/categories returns (id = slug).
 export const CATEGORIES: Category[] = [
-  { id: "cleaning", label: "Cleaning", icon: "broom", color: "var(--terracotta)", soft: "var(--terracotta-soft)" },
-  { id: "kitchen", label: "Kitchen", icon: "dishes", color: "var(--olive)", soft: "var(--olive-soft)" },
-  { id: "errands", label: "Errands", icon: "cart", color: "var(--sand)", soft: "var(--sand-soft)" },
-  { id: "home", label: "Home & Care", icon: "sofa", color: "var(--blue)", soft: "var(--blue-soft)" },
-  { id: "garden", label: "Garden", icon: "plant", color: "var(--olive)", soft: "var(--olive-soft)" },
-  { id: "vehicle", label: "Vehicle", icon: "car", color: "var(--ink-2)", soft: "var(--surface-3)" },
-  { id: "bills", label: "Admin & Bills", icon: "card", color: "var(--rose)", soft: "var(--rose-soft)" },
-  { id: "appointments", label: "Appointments", icon: "book", color: "var(--terracotta-deep)", soft: "var(--terracotta-soft)" }
+  { id: "cleaning", label: "Cleaning", icon: "broom", color: "#C97B5B", soft: "#E8C2AC" },
+  { id: "kitchen", label: "Kitchen", icon: "dishes", color: "#3F4B3B", soft: "#B5C2A6" },
+  { id: "errands", label: "Errands", icon: "cart", color: "#D9B36C", soft: "#F0DEB3" },
+  { id: "home", label: "Home & Care", icon: "sofa", color: "#6F8AA8", soft: "#C5D2DF" },
+  { id: "garden", label: "Garden", icon: "plant", color: "#3F4B3B", soft: "#B5C2A6" },
+  { id: "vehicle", label: "Vehicle", icon: "car", color: "#5C4F3F", soft: "#DFD0B4" },
+  { id: "bills", label: "Admin & Bills", icon: "card", color: "#D89AA0", soft: "#F1D6D9" },
+  { id: "appointments", label: "Appointments", icon: "book", color: "#A85F40", soft: "#E8C2AC" }
 ];
 
 export const PRIORITIES = {
