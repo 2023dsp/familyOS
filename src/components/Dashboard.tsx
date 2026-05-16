@@ -14,6 +14,7 @@ import { AllChoresView } from "./AllChoresView";
 import { CategoriesEditor } from "./CategoriesEditor";
 import { PushSubscribeCard } from "./PushSubscribeCard";
 import { NotificationScheduleCard } from "./NotificationScheduleCard";
+import { WeatherSettingsCard } from "./WeatherSettingsCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
 import { PullToRefresh } from "./PullToRefresh";
 import { WeatherCard } from "./WeatherCard";
@@ -1003,6 +1004,8 @@ function Settings() {
         <PushSubscribeCard />
 
         <NotificationScheduleCard />
+
+        <WeatherSettingsCard />
 
         <GoogleCalendarCard />
 
