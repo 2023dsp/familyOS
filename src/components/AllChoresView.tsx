@@ -59,12 +59,14 @@ export function AllChoresView({
   chores,
   isWide,
   onToggle,
-  onOpen
+  onOpen,
+  onToggleImportant
 }: {
   chores: ChoreRowData[];
   isWide: boolean;
   onToggle: (id: string, done: boolean) => void;
   onOpen: (c: ChoreRowData) => void;
+  onToggleImportant: (id: string, next: boolean) => void;
 }) {
   const sections = bucket(chores).filter((s) => s.items.length > 0);
   return (
@@ -91,7 +93,7 @@ export function AllChoresView({
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {s.items.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} dense={!isWide} />
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense={!isWide} />
             ))}
           </div>
         </section>

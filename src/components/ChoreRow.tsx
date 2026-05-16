@@ -64,11 +64,13 @@ export function ChoreRow({
   chore,
   onToggle,
   onOpen,
+  onToggleImportant,
   dense = false
 }: {
   chore: ChoreRowData;
   onToggle: (id: string, done: boolean) => void;
   onOpen?: (c: ChoreRowData) => void;
+  onToggleImportant?: (id: string, next: boolean) => void;
   dense?: boolean;
 }) {
   const categories = useCategories();
@@ -117,18 +119,42 @@ export function ChoreRow({
             <Icon name={chore.icon} color={cat?.color ?? "var(--terracotta)"} size={dense ? 18 : 22} />
           </span>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-            <div
-              className="chore-title"
-              style={{
-                fontWeight: 700,
-                fontSize: dense ? 15 : 17,
-                color: "var(--ink)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
-              }}
-            >
-              {chore.title}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              {chore.important && onToggleImportant && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleImportant(chore.id, false);
+                  }}
+                  aria-label="Unpin from important"
+                  title="Unpin"
+                  style={{
+                    display: "inline-flex",
+                    padding: 2,
+                    borderRadius: 6,
+                    background: "transparent",
+                    cursor: "pointer"
+                  }}
+                >
+                  <Icon name="sparkles" color="var(--terracotta-deep)" size={dense ? 14 : 16} />
+                </button>
+              )}
+              <div
+                className="chore-title"
+                style={{
+                  fontWeight: 700,
+                  fontSize: dense ? 15 : 17,
+                  color: "var(--ink)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  flex: 1,
+                  minWidth: 0
+                }}
+              >
+                {chore.title}
+              </div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
               {recurLabel && (

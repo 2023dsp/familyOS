@@ -12,18 +12,27 @@ export async function GET() {
   const ws = startOfWeek(now);
   const we = endOfWeek(now);
 
+  const liveChore = { chore: { status: { not: "archived" as const } } };
+  const liveChoreFilter = { status: { not: "archived" as const } };
+
   const [todayDone, todayTotal, weekDone, weekTotal, davideDone, luizeDone, streakRaw] = await Promise.all([
-    prisma.choreCompletion.count({ where: { completedAt: { gte: ts, lte: te } } }),
-    prisma.chore.count({ where: { dueDate: { gte: ts, lte: te } } }),
-    prisma.choreCompletion.count({ where: { completedAt: { gte: ws, lte: we } } }),
-    prisma.chore.count({ where: { OR: [{ dueDate: { gte: ws, lte: we } }, { completedAt: { gte: ws, lte: we } }] } }),
-    prisma.choreCompletion.count({
-      where: { completedAt: { gte: ws, lte: we }, member: { slug: "davide" } }
+    prisma.choreCompletion.count({ where: { completedAt: { gte: ts, lte: te }, ...liveChore } }),
+    prisma.chore.count({ where: { dueDate: { gte: ts, lte: te }, ...liveChoreFilter } }),
+    prisma.choreCompletion.count({ where: { completedAt: { gte: ws, lte: we }, ...liveChore } }),
+    prisma.chore.count({
+      where: {
+        ...liveChoreFilter,
+        OR: [{ dueDate: { gte: ws, lte: we } }, { completedAt: { gte: ws, lte: we } }]
+      }
     }),
     prisma.choreCompletion.count({
-      where: { completedAt: { gte: ws, lte: we }, member: { slug: "luize" } }
+      where: { completedAt: { gte: ws, lte: we }, member: { slug: "davide" }, ...liveChore }
+    }),
+    prisma.choreCompletion.count({
+      where: { completedAt: { gte: ws, lte: we }, member: { slug: "luize" }, ...liveChore }
     }),
     prisma.choreCompletion.findMany({
+      where: liveChore,
       orderBy: { completedAt: "desc" },
       take: 60,
       select: { completedAt: true }

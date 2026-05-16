@@ -230,6 +230,16 @@ export function Dashboard() {
     load();
   }
 
+  async function toggleImportant(id: string, next: boolean) {
+    setChores((cs) => cs.map((c) => (c.id === id ? { ...c, important: next } : c)));
+    await fetch(`/api/chores/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ important: next })
+    });
+    load();
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
@@ -240,9 +250,9 @@ export function Dashboard() {
 
   return (
     <CategoriesProvider value={categories}>
-    <div className={`tod-${hello.tod}`} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className={`tod-${hello.tod}`} style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <Header dateLabel={dateLabel} onLogout={logout} />
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
         {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
         <PullToRefresh
           onRefresh={load}
@@ -270,6 +280,7 @@ export function Dashboard() {
               onToggle={toggle}
               onOpen={(c) => setOpened(c)}
               onAdd={() => setAdding({})}
+              onToggleImportant={toggleImportant}
             />
           )}
           {tab === "calendar" && <CalendarView events={events} onChanged={load} isWide={isWide} />}
@@ -279,6 +290,7 @@ export function Dashboard() {
               isWide={isWide}
               onToggle={toggle}
               onOpen={(c) => setOpened(c)}
+              onToggleImportant={toggleImportant}
             />
           )}
           {tab === "templates" && (
@@ -382,10 +394,7 @@ function SideNav({
         alignItems: "center",
         gap: 16,
         flexShrink: 0,
-        position: "sticky",
-        top: 0,
-        alignSelf: "flex-start",
-        maxHeight: "100vh",
+        height: "100%",
         overflowY: "auto"
       }}
     >
@@ -552,6 +561,7 @@ type HomeProps = {
   onToggle: (id: string, done: boolean) => void;
   onOpen: (c: ChoreRowData) => void;
   onAdd: () => void;
+  onToggleImportant: (id: string, next: boolean) => void;
 };
 
 function Home(p: HomeProps) {
@@ -559,7 +569,7 @@ function Home(p: HomeProps) {
 }
 
 function TabletHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd } = p;
+  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd, onToggleImportant } = p;
   const week = stats?.week ?? { done: 0, total: 0 };
   const score = stats?.score ?? 0;
   const streak = stats?.streak ?? 0;
@@ -653,7 +663,7 @@ function TabletHome(p: HomeProps) {
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing pinned. Pin chores from their detail view (the star button) to flag big decisions like &quot;School choice for Ellie&quot;.</p>
             )}
             {importantTasks.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} />
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} />
             ))}
           </div>
         </div>
@@ -680,7 +690,7 @@ function TabletHome(p: HomeProps) {
               </div>
             )}
             {todayChores.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} />
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} />
             ))}
           </div>
         </div>
@@ -700,7 +710,7 @@ function TabletHome(p: HomeProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {upcoming.length === 0 && <p className="muted">Nothing scheduled yet.</p>}
             {upcoming.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} dense />
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
             ))}
           </div>
         </div>
@@ -717,7 +727,7 @@ function TabletHome(p: HomeProps) {
 }
 
 function MobileHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, recurringNext, filter, setFilter, filtered, loading, onToggle, onOpen } = p;
+  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, recurringNext, filter, setFilter, filtered, loading, onToggle, onOpen, onToggleImportant } = p;
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
@@ -788,7 +798,7 @@ function MobileHome(p: HomeProps) {
           </div>
         )}
         {filtered.map((c) => (
-          <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} dense />
+          <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
         ))}
       </div>
 
