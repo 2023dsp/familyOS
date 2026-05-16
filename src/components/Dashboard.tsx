@@ -8,6 +8,7 @@ import { Ring, Progress } from "./Ring";
 import { ChoreRow, type ChoreRowData } from "./ChoreRow";
 import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
 import { ChoreDetailModal } from "./ChoreDetailModal";
+import { ThemeToggle } from "./ThemeToggle";
 import { CATEGORIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
@@ -234,11 +235,12 @@ function Header({ dateLabel, onLogout }: { dateLabel: string; onLogout: () => vo
           </p>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--ink-3)", fontSize: 13 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
         <span className="hidden md:inline" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--olive)" }} />
           {dateLabel}
         </span>
+        <ThemeToggle compact />
         <button onClick={onLogout} className="btn btn-ghost" aria-label="Log out" type="button">
           <Icon name="user" color="var(--ink-2)" size={14} /> Logout
         </button>

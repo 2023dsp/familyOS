@@ -50,28 +50,8 @@
   --tod-tint: linear-gradient(180deg, rgba(245, 200, 140, 0.18), rgba(245, 200, 140, 0) 50%);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1B1814;
-    --bg-2: #221E18;
-    --surface: #28231C;
-    --surface-2: #322C22;
-    --surface-3: #3D3528;
-    --line: rgba(245, 230, 200, 0.08);
-    --line-2: rgba(245, 230, 200, 0.14);
-    --ink: #F1E8D6;
-    --ink-2: #C7B89E;
-    --ink-3: #998870;
-    --ink-4: #6E6250;
-    --terracotta-soft: #4A3024;
-    --olive-soft: #2F3A2C;
-    --sand-soft: #4A3D24;
-    --davide-soft: #2D3A48;
-    --luize-soft: #4A3236;
-  }
-}
-
-.theme-dark {
+html.theme-dark,
+html[data-theme="dark"] {
   --bg: #1B1814;
   --bg-2: #221E18;
   --surface: #28231C;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../components/Icon";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -51,6 +52,9 @@ export default function LoginPage() {
         background: "linear-gradient(160deg, var(--surface) 0%, var(--bg) 60%)"
       }}
     >
+      <div style={{ position: "absolute", top: 20, right: 20 }}>
+        <ThemeToggle compact />
+      </div>
       <form
         onSubmit={submit}
         className="fade-in"
