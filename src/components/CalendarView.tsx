@@ -122,8 +122,8 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
         </div>
       </div>
 
-      {mode === "week" && <WeekGrid anchor={anchor} events={events} onSlotClick={(d) => setAddingFor(d)} />}
-      {mode === "month" && <MonthGrid anchor={anchor} events={events} onDayClick={(d) => setAddingFor(d)} />}
+      {mode === "week" && <WeekGrid anchor={anchor} events={events} onSlotClick={(d) => setAddingFor(d)} isWide={isWide} />}
+      {mode === "month" && <MonthGrid anchor={anchor} events={events} onDayClick={(d) => setAddingFor(d)} isWide={isWide} />}
       {mode === "list" && <AgendaList events={events} />}
 
       <Legend />
@@ -154,7 +154,17 @@ function Legend() {
   );
 }
 
-function WeekGrid({ anchor, events, onSlotClick }: { anchor: Date; events: CalEvent[]; onSlotClick: (d: Date) => void }) {
+function WeekGrid({
+  anchor,
+  events,
+  onSlotClick,
+  isWide
+}: {
+  anchor: Date;
+  events: CalEvent[];
+  onSlotClick: (d: Date) => void;
+  isWide: boolean;
+}) {
   const start = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const today = new Date();
@@ -173,6 +183,78 @@ function WeekGrid({ anchor, events, onSlotClick }: { anchor: Date; events: CalEv
     }
     return map;
   }, [days, events]);
+
+  if (!isWide) {
+    // Narrow: vertical stack — one full-width card per day, just the events that matter
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {days.map((d, i) => {
+          const key = d.toDateString();
+          const isToday = key === today.toDateString();
+          const bucket = grouped.get(key)!;
+          const sorted = [...bucket.timed].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+          const total = bucket.allDay.length + sorted.length;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSlotClick(new Date(d))}
+              className="card"
+              style={{
+                padding: "12px 14px",
+                textAlign: "left",
+                background: isToday ? "linear-gradient(135deg, var(--terracotta-soft), var(--surface))" : undefined,
+                borderColor: isToday ? "var(--terracotta)" : undefined,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.08,
+                    textTransform: "uppercase",
+                    color: "var(--ink-3)",
+                    minWidth: 32
+                  }}
+                >
+                  {WEEKDAYS[i]}
+                </span>
+                <span
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: isToday ? "var(--terracotta-deep)" : "var(--ink)"
+                  }}
+                >
+                  {d.getDate()}
+                </span>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
+                  {total === 0 ? "Free" : `${total} event${total === 1 ? "" : "s"}`}
+                </span>
+              </div>
+              {total === 0 ? null : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {bucket.allDay.slice(0, 3).map((e) => (
+                    <EventPill key={e.id} event={e} compact />
+                  ))}
+                  {sorted.slice(0, 3).map((e) => (
+                    <EventPill key={e.id} event={e} compact showTime />
+                  ))}
+                  {total > 6 && (
+                    <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700 }}>+{total - 6} more</span>
+                  )}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
@@ -218,7 +300,17 @@ function WeekGrid({ anchor, events, onSlotClick }: { anchor: Date; events: CalEv
   );
 }
 
-function MonthGrid({ anchor, events, onDayClick }: { anchor: Date; events: CalEvent[]; onDayClick: (d: Date) => void }) {
+function MonthGrid({
+  anchor,
+  events,
+  onDayClick,
+  isWide
+}: {
+  anchor: Date;
+  events: CalEvent[];
+  onDayClick: (d: Date) => void;
+  isWide: boolean;
+}) {
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const start = startOfWeek(first);
   const cells = Array.from({ length: 42 }, (_, i) => addDays(start, i));
@@ -236,20 +328,64 @@ function MonthGrid({ anchor, events, onDayClick }: { anchor: Date; events: CalEv
     return map;
   }, [cells, events]);
 
+  const dayHeaders = isWide ? WEEKDAYS : ["M", "T", "W", "T", "F", "S", "S"];
+
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 8 }}>
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="muted" style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.08, textAlign: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: isWide ? 6 : 3, marginBottom: 6 }}>
+        {dayHeaders.map((d, i) => (
+          <div key={i} className="muted" style={{ fontSize: isWide ? 11 : 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.08, textAlign: "center" }}>
             {d}
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: isWide ? 6 : 3 }}>
         {cells.map((c) => {
           const list = byDay.get(c.toDateString()) ?? [];
           const otherMonth = c.getMonth() !== anchor.getMonth();
           const isToday = c.toDateString() === today.toDateString();
+          if (!isWide) {
+            // Narrow: tiny cells, only date + color dots
+            const personaSet = new Set<string>();
+            for (const e of list) personaSet.add(colorFor(e));
+            const dots = Array.from(personaSet).slice(0, 4);
+            return (
+              <button
+                key={c.toISOString()}
+                type="button"
+                onClick={() => onDayClick(new Date(c))}
+                style={{
+                  aspectRatio: "1 / 1",
+                  background: isToday ? "var(--terracotta)" : otherMonth ? "transparent" : "var(--surface-2)",
+                  color: isToday ? "white" : otherMonth ? "var(--ink-4)" : "var(--ink)",
+                  borderRadius: 8,
+                  padding: 4,
+                  border: isToday ? "1.5px solid var(--terracotta-deep)" : "1px solid var(--line)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  minHeight: 0
+                }}
+              >
+                <span style={{ fontWeight: 800, fontSize: 12 }}>{c.getDate()}</span>
+                <div style={{ display: "flex", gap: 2, marginTop: 1 }}>
+                  {dots.map((color, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        width: 4,
+                        height: 4,
+                        borderRadius: 99,
+                        background: isToday ? "rgba(255,255,255,0.9)" : color
+                      }}
+                    />
+                  ))}
+                </div>
+              </button>
+            );
+          }
           return (
             <button
               key={c.toISOString()}
@@ -304,6 +440,7 @@ function MonthGrid({ anchor, events, onDayClick }: { anchor: Date; events: CalEv
     </div>
   );
 }
+
 
 function AgendaList({ events }: { events: CalEvent[] }) {
   if (events.length === 0) {
