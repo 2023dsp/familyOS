@@ -1,0 +1,819 @@
+"use client";
+
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Icon } from "./Icon";
+import { Avatar } from "./Avatar";
+import { Ring, Progress } from "./Ring";
+import { ChoreRow, type ChoreRowData } from "./ChoreRow";
+import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
+import { ChoreDetailModal } from "./ChoreDetailModal";
+import { CATEGORIES, type AssigneeSlug, type PriorityKey } from "@/lib/catalog";
+import { humanDue, helloFor, isSameDay, startOfDay } from "@/lib/date";
+import { formatRecurrence } from "@/lib/recurrence";
+import type { RecurrenceUnit } from "@prisma/client";
+
+type ApiChore = {
+  id: string;
+  title: string;
+  notes: string | null;
+  icon: string;
+  category: string;
+  priority: PriorityKey;
+  assignee: { slug: string; name: string } | null;
+  dueDate: string | null;
+  isRecurring: boolean;
+  recurInterval: number | null;
+  recurUnit: RecurrenceUnit | null;
+  recurDaysOfWeek: string | null;
+  status: "active" | "completed" | "archived";
+  completedAt: string | null;
+};
+
+type Template = {
+  id: string;
+  title: string;
+  icon: string;
+  category: string;
+  priority: PriorityKey;
+  defaultRecurInterval: number | null;
+  defaultRecurUnit: RecurrenceUnit | null;
+  seasonal: boolean;
+};
+
+type Stats = {
+  today: { done: number; total: number };
+  week: { done: number; total: number };
+  perMember: { davide: number; luize: number };
+  streak: number;
+  score: number;
+};
+
+function toRowData(c: ApiChore): ChoreRowData {
+  const slug = (c.assignee?.slug ?? "unassigned") as AssigneeSlug;
+  return {
+    id: c.id,
+    title: c.title,
+    icon: c.icon,
+    category: c.category,
+    priority: c.priority,
+    assigneeSlug: ["davide", "luize", "both", "unassigned"].includes(slug) ? slug : "unassigned",
+    dueDate: c.dueDate,
+    isRecurring: c.isRecurring,
+    recurInterval: c.recurInterval,
+    recurUnit: c.recurUnit,
+    recurDaysOfWeek: c.recurDaysOfWeek,
+    done: c.status === "completed"
+  };
+}
+
+export function Dashboard() {
+  const [chores, setChores] = useState<ApiChore[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [adding, setAdding] = useState<AddChorePrefill | null>(null);
+  const [opened, setOpened] = useState<ChoreRowData | null>(null);
+  const [tab, setTab] = useState<"home" | "calendar" | "templates" | "settings">("home");
+  const [filter, setFilter] = useState<"today" | "upcoming" | "mine" | "all">("today");
+  const [isWide, setIsWide] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsWide(mq.matches);
+    const fn = (e: MediaQueryListEvent) => setIsWide(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+
+  const load = useCallback(async () => {
+    const [cRes, tRes, sRes] = await Promise.all([
+      fetch("/api/chores?status=all", { cache: "no-store" }),
+      fetch("/api/templates", { cache: "no-store" }),
+      fetch("/api/stats", { cache: "no-store" })
+    ]);
+    if (cRes.ok) setChores((await cRes.json()).chores);
+    if (tRes.ok) setTemplates((await tRes.json()).templates);
+    if (sRes.ok) setStats(await sRes.json());
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const hello = helloFor();
+  const today = new Date();
+  const todayChores = useMemo(
+    () => chores.filter((c) => c.status !== "archived" && c.dueDate && isSameDay(new Date(c.dueDate), today)),
+    [chores]
+  );
+  const completedToday = todayChores.filter((c) => c.status === "completed").length;
+  const remainingToday = todayChores.length - completedToday;
+  const upcoming = useMemo(
+    () =>
+      chores
+        .filter((c) => c.status === "active" && c.dueDate && new Date(c.dueDate) > startOfDay(today))
+        .slice(0, 5),
+    [chores]
+  );
+  const recurringNext = useMemo(
+    () => chores.filter((c) => c.isRecurring && c.status !== "archived").slice(0, 6),
+    [chores]
+  );
+
+  const filtered = useMemo(() => {
+    const base = chores.filter((c) => c.status !== "archived");
+    if (filter === "today") return base.filter((c) => c.dueDate && isSameDay(new Date(c.dueDate), today));
+    if (filter === "upcoming") return base.filter((c) => c.dueDate && new Date(c.dueDate) > startOfDay(today));
+    if (filter === "mine") return base.filter((c) => ["luize", "both"].includes(c.assignee?.slug ?? ""));
+    return base;
+  }, [chores, filter]);
+
+  async function toggle(id: string, done: boolean) {
+    setChores((cs) => cs.map((c) => (c.id === id ? { ...c, status: done ? "completed" : "active" } : c)));
+    await fetch(`/api/chores/${id}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ undo: !done })
+    });
+    load();
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }
+
+  const dateLabel = today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
+  return (
+    <div className={`tod-${hello.tod}`} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <Header dateLabel={dateLabel} onLogout={logout} />
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
+        <main className="scroll" style={{ flex: 1, padding: isWide ? "16px 36px 120px" : "12px 16px 96px", minWidth: 0 }}>
+          {tab === "home" && (
+            <Home
+              isWide={isWide}
+              hello={hello}
+              dateLabel={dateLabel}
+              stats={stats}
+              chores={chores.map(toRowData)}
+              todayChores={todayChores.map(toRowData)}
+              completedToday={completedToday}
+              remainingToday={remainingToday}
+              upcoming={upcoming.map(toRowData)}
+              recurringNext={recurringNext}
+              filter={filter}
+              setFilter={setFilter}
+              filtered={filtered.map(toRowData)}
+              onToggle={toggle}
+              onOpen={(c) => setOpened(c)}
+              onAdd={() => setAdding({})}
+            />
+          )}
+          {tab === "calendar" && <CalendarView />}
+          {tab === "templates" && (
+            <Templates
+              templates={templates}
+              isWide={isWide}
+              onPick={(t) =>
+                setAdding({
+                  title: t.title,
+                  icon: t.icon,
+                  category: t.category,
+                  priority: t.priority,
+                  recurInterval: t.defaultRecurInterval ?? undefined,
+                  recurUnit: t.defaultRecurUnit ?? undefined
+                })
+              }
+            />
+          )}
+          {tab === "settings" && <Settings />}
+        </main>
+      </div>
+
+      {!isWide && <MobileTabBar active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
+
+      {adding && <AddChoreModal onClose={() => setAdding(null)} onSaved={() => { setAdding(null); load(); }} prefill={adding} />}
+      {opened && <ChoreDetailModal chore={opened} onClose={() => setOpened(null)} onChanged={load} />}
+    </div>
+  );
+}
+
+function Header({ dateLabel, onLogout }: { dateLabel: string; onLogout: () => void }) {
+  return (
+    <header
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "20px 24px 12px",
+        gap: 16
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
+            display: "grid",
+            placeItems: "center",
+            boxShadow: "var(--shadow)"
+          }}
+        >
+          <Icon name="home" color="white" accent="rgba(255,255,255,0.6)" size={26} />
+        </div>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: -0.01 }}>FamilyOS</h1>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--ink-3)" }}>
+            {process.env.NEXT_PUBLIC_FAMILY_NAMES ?? "Davide & Luize"} · Family operations
+          </p>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--ink-3)", fontSize: 13 }}>
+        <span className="hidden md:inline" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--olive)" }} />
+          {dateLabel}
+        </span>
+        <button onClick={onLogout} className="btn btn-ghost" aria-label="Log out" type="button">
+          <Icon name="user" color="var(--ink-2)" size={14} /> Logout
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function SideNav({
+  active,
+  setActive,
+  onAdd
+}: {
+  active: string;
+  setActive: (k: "home" | "calendar" | "templates" | "settings") => void;
+  onAdd: () => void;
+}) {
+  const items: Array<{ id: "home" | "calendar" | "templates" | "settings"; icon: string; label: string }> = [
+    { id: "home", icon: "home", label: "Home" },
+    { id: "calendar", icon: "calendar", label: "Calendar" },
+    { id: "templates", icon: "layers", label: "Templates" },
+    { id: "settings", icon: "settings", label: "Settings" }
+  ];
+  return (
+    <nav
+      style={{
+        width: 96,
+        padding: "8px 16px 28px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 16,
+        flexShrink: 0
+      }}
+    >
+      <button
+        onClick={onAdd}
+        type="button"
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: 22,
+          background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
+          color: "white",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 8px 22px rgba(201,123,91,0.35)"
+        }}
+        aria-label="Add chore"
+      >
+        <Icon name="plus" color="white" size={28} />
+      </button>
+      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+        {items.map((it) => {
+          const sel = active === it.id;
+          return (
+            <button
+              key={it.id}
+              onClick={() => setActive(it.id)}
+              type="button"
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 18,
+                background: sel ? "var(--surface)" : "transparent",
+                color: sel ? "var(--terracotta)" : "var(--ink-3)",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: sel ? "var(--shadow-sm)" : "none",
+                position: "relative",
+                transition: "all 0.15s"
+              }}
+            >
+              <Icon
+                name={it.icon}
+                color={sel ? "var(--terracotta)" : "var(--ink-3)"}
+                accent={sel ? "var(--terracotta-deep)" : "var(--ink-4)"}
+                size={26}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: 4,
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: 0.08,
+                  textTransform: "uppercase"
+                }}
+              >
+                {it.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function MobileTabBar({
+  active,
+  setActive,
+  onAdd
+}: {
+  active: string;
+  setActive: (k: "home" | "calendar" | "templates" | "settings") => void;
+  onAdd: () => void;
+}) {
+  const items: Array<{ id: "home" | "calendar" | "templates" | "settings"; icon: string; label: string }> = [
+    { id: "home", icon: "home", label: "Home" },
+    { id: "calendar", icon: "calendar", label: "Calendar" },
+    { id: "templates", icon: "layers", label: "Templates" },
+    { id: "settings", icon: "settings", label: "Settings" }
+  ];
+  return (
+    <nav
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: "10px 12px calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        background: "linear-gradient(to top, var(--surface) 70%, transparent)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-around",
+        zIndex: 30
+      }}
+    >
+      {items.slice(0, 2).map((it) => (
+        <TabBtn key={it.id} item={it} active={active === it.id} onClick={() => setActive(it.id)} />
+      ))}
+      <button
+        onClick={onAdd}
+        type="button"
+        style={{
+          width: 54,
+          height: 54,
+          borderRadius: 18,
+          background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
+          color: "white",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 6px 16px rgba(201,123,91,0.4)",
+          marginTop: -18
+        }}
+        aria-label="Add chore"
+      >
+        <Icon name="plus" color="white" size={26} />
+      </button>
+      {items.slice(2).map((it) => (
+        <TabBtn key={it.id} item={it} active={active === it.id} onClick={() => setActive(it.id)} />
+      ))}
+    </nav>
+  );
+}
+
+function TabBtn({ item, active, onClick }: { item: { icon: string; label: string }; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 3,
+        padding: "6px 4px",
+        minWidth: 56,
+        color: active ? "var(--terracotta)" : "var(--ink-3)"
+      }}
+    >
+      <Icon name={item.icon} color={active ? "var(--terracotta)" : "var(--ink-3)"} accent={active ? "var(--terracotta-deep)" : "var(--ink-4)"} size={22} />
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.04 }}>{item.label}</span>
+    </button>
+  );
+}
+
+type HomeProps = {
+  isWide: boolean;
+  hello: ReturnType<typeof helloFor>;
+  dateLabel: string;
+  stats: Stats | null;
+  chores: ChoreRowData[];
+  todayChores: ChoreRowData[];
+  completedToday: number;
+  remainingToday: number;
+  upcoming: ChoreRowData[];
+  recurringNext: ApiChore[];
+  filter: "today" | "upcoming" | "mine" | "all";
+  setFilter: (v: HomeProps["filter"]) => void;
+  filtered: ChoreRowData[];
+  onToggle: (id: string, done: boolean) => void;
+  onOpen: (c: ChoreRowData) => void;
+  onAdd: () => void;
+};
+
+function Home(p: HomeProps) {
+  return p.isWide ? <TabletHome {...p} /> : <MobileHome {...p} />;
+}
+
+function TabletHome(p: HomeProps) {
+  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, upcoming, recurringNext, onToggle, onOpen, onAdd } = p;
+  const week = stats?.week ?? { done: 0, total: 0 };
+  const score = stats?.score ?? 0;
+  const streak = stats?.streak ?? 0;
+  return (
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", fontSize: 13 }}>
+            <Icon name={hello.emoji} color="var(--sand)" size={18} /> {dateLabel}
+          </div>
+          <h1 style={{ margin: "4px 0 6px", fontSize: 40, fontWeight: 800, letterSpacing: -0.02 }}>
+            {hello.greeting}, <span style={{ color: "var(--terracotta)" }}>{process.env.NEXT_PUBLIC_FAMILY_NAMES ?? "Davide & Luize"}</span>
+          </h1>
+          <div style={{ color: "var(--ink-3)", fontSize: 15, fontWeight: 600 }}>
+            {remainingToday > 0 ? `${remainingToday} chores left today` : "All done — nice."}
+          </div>
+        </div>
+        <button onClick={onAdd} className="btn btn-primary" style={{ padding: "14px 22px", fontSize: 15, borderRadius: 20 }} type="button">
+          <Icon name="plus" color="white" size={18} /> Add chore
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr", gap: 16 }}>
+        <div className="card" style={{ background: "linear-gradient(135deg, var(--surface), var(--bg-2))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Today</span>
+            <span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>
+              <Icon name="check" color="var(--olive)" size={12} /> {completedToday}/{todayChores.length} done
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+            <Ring value={completedToday} max={todayChores.length || 1} size={120} stroke={12} color="var(--olive)" label={`${completedToday}/${todayChores.length}`} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.1 }}>
+                {remainingToday > 0 ? `${remainingToday} to go` : "All done — nice."}
+              </div>
+              <div className="muted" style={{ fontSize: 14, marginTop: 4 }}>
+                {remainingToday > 0 ? "Knock one out together after coffee." : "The home is in good order."}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>This week</span>
+          <div style={{ fontSize: 30, fontWeight: 800, marginTop: 10, lineHeight: 1 }}>
+            {week.done}
+            <span className="muted" style={{ fontSize: 16, fontWeight: 700 }}> / {week.total}</span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>chores completed</div>
+          <div style={{ marginTop: 14 }}>
+            <Progress value={week.done} max={week.total || 1} color="var(--terracotta)" height={10} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 12, fontWeight: 700 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Avatar who="davide" size={20} /> Davide · {stats?.perMember.davide ?? 0}
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Avatar who="luize" size={20} /> Luize · {stats?.perMember.luize ?? 0}
+            </span>
+          </div>
+        </div>
+
+        <div className="card" style={{ background: "linear-gradient(160deg, var(--terracotta-soft), var(--surface))" }}>
+          <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Household score</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 10 }}>
+            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, color: "var(--terracotta-deep)" }}>{score}</span>
+            <span className="muted" style={{ fontSize: 13, fontWeight: 700 }}>/ 100</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+            <Icon name="fire" color="var(--terracotta)" size={18} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--terracotta-deep)" }}>
+              {streak > 0 ? `${streak}-day streak` : "Start a streak today"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Today&apos;s chores</h2>
+            <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Tap the circle to complete · the row to open</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {todayChores.length === 0 && (
+              <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)" }}>
+                <Icon name="trophy" color="var(--sand)" size={36} />
+                <p style={{ margin: "8px 0 0", fontWeight: 700 }}>Nothing left for today. The home is sorted.</p>
+              </div>
+            )}
+            {todayChores.map((c) => (
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>What&apos;s on</h2>
+            <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> Calendar (placeholder)</span>
+          </div>
+          <CalendarStub />
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="card">
+          <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 800 }}>Coming up</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {upcoming.length === 0 && <p className="muted">Nothing scheduled yet.</p>}
+            {upcoming.map((c) => (
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} dense />
+            ))}
+          </div>
+        </div>
+        <div className="card" style={{ background: "var(--bg-2)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Repeats</h2>
+            <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Auto-scheduled</span>
+          </div>
+          <RecurringList rows={recurringNext} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileHome(p: HomeProps) {
+  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, recurringNext, filter, setFilter, filtered, onToggle, onOpen } = p;
+  return (
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-3)", fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", fontSize: 11 }}>
+          <Icon name={hello.emoji} color="var(--sand)" size={14} /> {dateLabel}
+        </div>
+        <h1 style={{ margin: "4px 0 2px", fontSize: 26, fontWeight: 800 }}>{hello.greeting}.</h1>
+        <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 13 }}>
+          {remainingToday > 0 ? `${remainingToday} chores left today` : "Nothing left — nice."}
+        </p>
+      </div>
+
+      <div className="card" style={{ padding: 18, background: "linear-gradient(135deg, var(--terracotta-soft), var(--surface))" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", color: "var(--terracotta-deep)" }}>Today</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "var(--terracotta-deep)" }}>
+            <Icon name="fire" color="var(--terracotta)" size={14} /> {stats?.streak ?? 0}-day streak
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <Ring value={completedToday} max={todayChores.length || 1} size={72} stroke={8} color="var(--terracotta-deep)" label={`${completedToday}/${todayChores.length}`} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1.2 }}>
+              {remainingToday > 0 ? `${remainingToday} to go` : "Done for today!"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--terracotta-deep)", marginTop: 2 }}>
+              Score · {stats?.score ?? 0} / 100
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, overflowX: "auto" }} className="no-scrollbar">
+        {(["today", "upcoming", "mine", "all"] as const).map((t) => {
+          const sel = filter === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setFilter(t)}
+              type="button"
+              style={{
+                padding: "8px 16px",
+                borderRadius: 99,
+                background: sel ? "var(--ink)" : "rgba(0,0,0,0.04)",
+                color: sel ? "var(--surface)" : "var(--ink-2)",
+                fontWeight: 800,
+                fontSize: 13,
+                whiteSpace: "nowrap"
+              }}
+            >
+              {t[0]!.toUpperCase() + t.slice(1)}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {filtered.length === 0 && (
+          <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
+            <Icon name="trophy" color="var(--sand)" size={28} />
+            <p style={{ margin: "6px 0 0", fontWeight: 700 }}>Nothing here. Nice.</p>
+          </div>
+        )}
+        {filtered.map((c) => (
+          <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} dense />
+        ))}
+      </div>
+
+      <div className="card" style={{ padding: 16, background: "var(--bg-2)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Repeating</h3>
+          <span className="muted" style={{ fontSize: 12 }}>Auto-scheduled</span>
+        </div>
+        <RecurringList rows={recurringNext} dense />
+      </div>
+    </div>
+  );
+}
+
+function RecurringList({ rows, dense }: { rows: ApiChore[]; dense?: boolean }) {
+  if (rows.length === 0) {
+    return <p className="muted" style={{ fontSize: 13 }}>No recurring chores yet.</p>;
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: dense ? 4 : 6 }}>
+      {rows.map((r) => (
+        <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: dense ? "6px 0" : "8px 0", borderBottom: dense ? "none" : "1px solid var(--line)" }}>
+          <span style={{ width: dense ? 30 : 36, height: dense ? 30 : 36, borderRadius: 10, background: "var(--surface)", display: "grid", placeItems: "center" }}>
+            <Icon name={r.icon} color="var(--olive)" size={dense ? 16 : 18} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: dense ? 13 : 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.title}</div>
+            <div className="muted" style={{ fontSize: dense ? 11 : 12 }}>
+              {r.recurInterval && r.recurUnit
+                ? formatRecurrence({ interval: r.recurInterval, unit: r.recurUnit, daysOfWeek: r.recurDaysOfWeek ? r.recurDaysOfWeek.split(",") : undefined })
+                : "—"} · next {humanDue(r.dueDate ? new Date(r.dueDate) : null) || "soon"}
+            </div>
+          </div>
+          <Avatar who={(r.assignee?.slug ?? "unassigned") as AssigneeSlug} size={dense ? 22 : 26} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CalendarStub() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {["No events synced yet.", "Connect Google Calendar in Settings to see what's on."].map((line, i) => (
+        <div key={i} className="card-flat" style={{ padding: 12, borderRadius: 14, borderLeft: "4px solid var(--blue)" }}>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>{line}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CalendarView() {
+  return (
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Calendar</span>
+        <h1 style={{ margin: "4px 0", fontSize: 28, fontWeight: 800 }}>
+          {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+        </h1>
+      </div>
+      <div className="card">
+        <p style={{ margin: 0, color: "var(--ink-2)" }}>
+          Calendar preview is read-only in this MVP. Once you connect Google Calendar (see Settings), upcoming
+          events for the household will appear here next to chores.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Templates({ templates, isWide, onPick }: { templates: Template[]; isWide: boolean; onPick: (t: Template) => void }) {
+  return (
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Templates</span>
+        <h1 style={{ margin: "4px 0", fontSize: isWide ? 32 : 24, fontWeight: 800 }}>Quick-add a chore</h1>
+        <p className="muted" style={{ margin: 0, fontSize: 14 }}>Tap a tile to add it with sensible defaults.</p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: isWide ? "repeat(4, 1fr)" : "1fr 1fr", gap: 14 }}>
+        {templates.map((t) => {
+          const cat = CATEGORIES.find((c) => c.id === t.category);
+          return (
+            <button
+              key={t.id}
+              onClick={() => onPick(t)}
+              className="card"
+              type="button"
+              style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: 10, cursor: "pointer" }}
+            >
+              <span style={{ width: 48, height: 48, borderRadius: 14, background: cat?.soft, display: "grid", placeItems: "center" }}>
+                <Icon name={t.icon} color={cat?.color} size={24} />
+              </span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>{t.title}</div>
+                <div className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
+                  {t.defaultRecurInterval && t.defaultRecurUnit
+                    ? `Suggests · ${formatRecurrence({ interval: t.defaultRecurInterval, unit: t.defaultRecurUnit })}`
+                    : "One-off"}
+                </div>
+              </div>
+              {t.seasonal && (
+                <span className="pill" style={{ background: "var(--sand-soft)", color: "var(--sand)", alignSelf: "flex-start" }}>
+                  <Icon name="sparkles" color="var(--sand)" size={11} /> Seasonal
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Settings() {
+  return (
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Settings</span>
+        <h1 style={{ margin: "4px 0", fontSize: 28, fontWeight: 800 }}>Family preferences</h1>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+        <SettingsCard title="Family members" icon="users">
+          <SettingsRow leading={<Avatar who="davide" size={32} />} label="Davide" desc="Admin" />
+          <SettingsRow leading={<Avatar who="luize" size={32} />} label="Luize" desc="Admin" />
+          <SettingsRow leading={<Avatar who="unassigned" size={32} />} label="Add a member" desc="Future child / guest mode" trailing={<span className="pill">Coming soon</span>} />
+        </SettingsCard>
+
+        <SettingsCard title="Categories" icon="layers">
+          {CATEGORIES.map((c) => (
+            <SettingsRow
+              key={c.id}
+              leading={
+                <span style={{ width: 32, height: 32, borderRadius: 10, background: c.soft, display: "grid", placeItems: "center" }}>
+                  <Icon name={c.icon} color={c.color} size={18} />
+                </span>
+              }
+              label={c.label}
+              desc=""
+            />
+          ))}
+        </SettingsCard>
+
+        <SettingsCard title="Family password" icon="user">
+          <SettingsRow label="Shared password" desc="Set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
+        </SettingsCard>
+
+        <SettingsCard title="Connections" icon="link">
+          <SettingsRow label="Google Calendar" desc="Not connected" trailing={<span className="pill">Coming soon</span>} />
+          <SettingsRow label="OpenAI suggestions" desc="Optional, falls back to local rules" trailing={<span className="pill">Optional</span>} />
+        </SettingsCard>
+      </div>
+    </div>
+  );
+}
+
+function SettingsCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+  return (
+    <div className="card">
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <Icon name={icon} color="var(--terracotta)" size={22} />
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{title}</h3>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function SettingsRow({ leading, label, desc, trailing }: { leading?: React.ReactNode; label: string; desc?: string; trailing?: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderTop: "1px solid var(--line)" }}>
+      {leading}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{label}</div>
+        {desc && <div className="muted" style={{ fontSize: 12 }}>{desc}</div>}
+      </div>
+      {trailing}
+    </div>
+  );
+}

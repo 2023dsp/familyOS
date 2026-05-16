@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: familyos
+      POSTGRES_PASSWORD: familyos
+      POSTGRES_DB: familyos
+    volumes:
+      - familyos-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familyos -d familyos"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://familyos:familyos@db:5432/familyos?schema=public
+      FAMILY_ACCESS_PASSWORD: ${FAMILY_ACCESS_PASSWORD:-changeme}
+      FAMILY_ACCESS_PASSWORD_HASH: ${FAMILY_ACCESS_PASSWORD_HASH:-}
+      SESSION_SECRET: ${SESSION_SECRET:-please-generate-a-long-random-secret}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NEXT_PUBLIC_APP_NAME: FamilyOS
+      NEXT_PUBLIC_FAMILY_NAMES: ${NEXT_PUBLIC_FAMILY_NAMES:-Davide & Luize}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  familyos-pg:

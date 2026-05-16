@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+dist
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+prisma/dev.db*
+
+# Local-only secrets (passwords, SSH keypairs, generated env)
+.secrets/
+*.pem
+*.key
+familyos-deploy*

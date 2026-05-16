@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Force LF on files that must run on Linux
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf
+scripts/*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+prisma/schema.prisma text eol=lf

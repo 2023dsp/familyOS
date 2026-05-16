@@ -1,0 +1,255 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FamilyOS — Design tokens. Mirrors the Claude Design styles.css. */
+:root {
+  --bg: #F2EAD8;
+  --bg-2: #EFE6D2;
+  --surface: #FAF5EA;
+  --surface-2: #E8DCC4;
+  --surface-3: #DFD0B4;
+  --line: rgba(60, 45, 25, 0.08);
+  --line-2: rgba(60, 45, 25, 0.14);
+
+  --ink: #2B2620;
+  --ink-2: #5C4F3F;
+  --ink-3: #8A7A65;
+  --ink-4: #B5A589;
+
+  --terracotta: #C97B5B;
+  --terracotta-soft: #E8C2AC;
+  --terracotta-deep: #A85F40;
+
+  --olive: #3F4B3B;
+  --olive-soft: #B5C2A6;
+
+  --sand: #D9B36C;
+  --sand-soft: #F0DEB3;
+
+  --blue: #6F8AA8;
+  --blue-soft: #C5D2DF;
+
+  --rose: #D89AA0;
+  --rose-soft: #F1D6D9;
+
+  --success: #6B8E5A;
+  --warn: #D89A4F;
+  --danger: #B85A45;
+
+  --davide: #6F8AA8;
+  --davide-soft: #D6E0EB;
+  --luize: #D89AA0;
+  --luize-soft: #F4DCDF;
+
+  --shadow-sm: 0 1px 2px rgba(80, 60, 40, 0.06);
+  --shadow: 0 2px 12px rgba(80, 60, 40, 0.07), 0 1px 2px rgba(80, 60, 40, 0.04);
+  --shadow-lg: 0 12px 36px rgba(80, 60, 40, 0.12), 0 4px 10px rgba(80, 60, 40, 0.05);
+  --shadow-xl: 0 28px 60px rgba(80, 60, 40, 0.18), 0 8px 20px rgba(80, 60, 40, 0.08);
+
+  --tod-tint: linear-gradient(180deg, rgba(245, 200, 140, 0.18), rgba(245, 200, 140, 0) 50%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1B1814;
+    --bg-2: #221E18;
+    --surface: #28231C;
+    --surface-2: #322C22;
+    --surface-3: #3D3528;
+    --line: rgba(245, 230, 200, 0.08);
+    --line-2: rgba(245, 230, 200, 0.14);
+    --ink: #F1E8D6;
+    --ink-2: #C7B89E;
+    --ink-3: #998870;
+    --ink-4: #6E6250;
+    --terracotta-soft: #4A3024;
+    --olive-soft: #2F3A2C;
+    --sand-soft: #4A3D24;
+    --davide-soft: #2D3A48;
+    --luize-soft: #4A3236;
+  }
+}
+
+.theme-dark {
+  --bg: #1B1814;
+  --bg-2: #221E18;
+  --surface: #28231C;
+  --surface-2: #322C22;
+  --surface-3: #3D3528;
+  --line: rgba(245, 230, 200, 0.08);
+  --line-2: rgba(245, 230, 200, 0.14);
+  --ink: #F1E8D6;
+  --ink-2: #C7B89E;
+  --ink-3: #998870;
+  --ink-4: #6E6250;
+  --terracotta-soft: #4A3024;
+  --olive-soft: #2F3A2C;
+  --sand-soft: #4A3D24;
+  --davide-soft: #2D3A48;
+  --luize-soft: #4A3236;
+}
+
+.tod-morning { --tod-tint: linear-gradient(180deg, rgba(245, 200, 140, 0.22), rgba(245, 200, 140, 0) 50%); }
+.tod-midday  { --tod-tint: linear-gradient(180deg, rgba(255, 250, 230, 0.18), rgba(255, 250, 230, 0) 60%); }
+.tod-evening { --tod-tint: linear-gradient(180deg, rgba(220, 130, 90, 0.22), rgba(180, 90, 70, 0.08) 60%); }
+.tod-night   { --tod-tint: linear-gradient(180deg, rgba(60, 70, 110, 0.32), rgba(40, 50, 90, 0.10) 60%); }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+body {
+  background-image: var(--tod-tint), radial-gradient(at 20% 10%, rgba(217, 179, 108, 0.08), transparent 60%);
+  background-attachment: fixed;
+}
+
+button { font-family: inherit; border: 0; background: none; cursor: pointer; color: inherit; }
+input, textarea, select { font-family: inherit; }
+
+.card {
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--line);
+}
+.card-flat {
+  background: var(--surface-2);
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: rgba(0, 0, 0, 0.04);
+}
+.theme-dark .pill { background: rgba(255, 255, 255, 0.06); }
+
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--surface);
+  flex-shrink: 0;
+}
+.avatar-davide { background: var(--davide); }
+.avatar-luize { background: var(--luize); }
+.avatar-both { background: linear-gradient(135deg, var(--davide) 0 50%, var(--luize) 50% 100%); }
+.avatar-unassigned {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1.5px dashed var(--line-2);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 18px;
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--terracotta);
+  color: white;
+  box-shadow: 0 4px 12px rgba(201, 123, 91, 0.28);
+}
+.btn-primary:hover { background: var(--terracotta-deep); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-ghost { background: rgba(0, 0, 0, 0.04); color: var(--ink); }
+.theme-dark .btn-ghost { background: rgba(255, 255, 255, 0.06); }
+.btn-ghost:hover { background: rgba(0, 0, 0, 0.07); }
+.btn-outline { background: transparent; color: var(--ink); border: 1px solid var(--line-2); }
+
+.input {
+  width: 100%;
+  border: 1.5px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 14px 16px;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  border-color: var(--terracotta);
+  box-shadow: 0 0 0 4px rgba(201, 123, 91, 0.12);
+}
+.input::placeholder { color: var(--ink-4); }
+
+.check {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  border: 2px solid var(--line-2);
+  display: grid; place-items: center;
+  background: var(--surface);
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+.check.done {
+  border-color: var(--olive);
+  background: var(--olive);
+}
+.check.large { width: 36px; height: 36px; }
+
+.chore-done .chore-title {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-4);
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: none; } }
+.fade-in { animation: fadeIn 0.3s ease both; }
+.scale-in { animation: scaleIn 0.2s ease both; }
+.slide-up { animation: slideUp 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+.scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.scroll::-webkit-scrollbar { width: 6px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+.muted { color: var(--ink-3); }
+.muted-2 { color: var(--ink-4); }
+
+/* Big touch targets for tablet kiosk mode */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .check { min-width: 32px; min-height: 32px; }
+}
+
+/* Hide scrollbars in install/standalone */
+@media (display-mode: standalone) {
+  body { overscroll-behavior: none; }
+}

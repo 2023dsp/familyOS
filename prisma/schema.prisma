@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum ChoreStatus {
+  active
+  completed
+  archived
+}
+
+enum RecurrenceUnit {
+  day
+  week
+  month
+}
+
+model FamilyMember {
+  id        String   @id @default(cuid())
+  slug      String   @unique // "davide" | "luize" | "both" | "unassigned"
+  name      String
+  initials  String
+  color     String   // CSS var name e.g. "--davide"
+  isPerson  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  chores      Chore[]         @relation("ChoreAssignee")
+  completions ChoreCompletion[]
+}
+
+model ChoreTemplate {
+  id              String         @id @default(cuid())
+  title           String
+  icon            String
+  category        String
+  priority        Priority       @default(medium)
+  defaultRecurInterval Int?
+  defaultRecurUnit     RecurrenceUnit?
+  seasonal        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+}
+
+model Chore {
+  id              String       @id @default(cuid())
+  title           String
+  notes           String?
+  icon            String       @default("broom")
+  category        String       @default("cleaning")
+  priority        Priority     @default(medium)
+
+  assigneeId      String?
+  assignee        FamilyMember? @relation("ChoreAssignee", fields: [assigneeId], references: [id])
+
+  dueDate         DateTime?
+  isRecurring     Boolean      @default(false)
+  recurInterval   Int?
+  recurUnit       RecurrenceUnit?
+  recurDaysOfWeek String?      // comma-sep e.g. "mon,fri" (weekly)
+  recurDayOfMonth Int?         // monthly anchor day
+
+  status          ChoreStatus  @default(active)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  completedAt     DateTime?
+
+  completions     ChoreCompletion[]
+
+  @@index([status, dueDate])
+}
+
+model ChoreCompletion {
+  id          String       @id @default(cuid())
+  choreId     String
+  chore       Chore        @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  memberId    String?
+  member      FamilyMember? @relation(fields: [memberId], references: [id])
+  completedAt DateTime     @default(now())
+  occurrenceFor DateTime?
+
+  @@index([choreId, completedAt])
+}
+
+model CalendarEvent {
+  id        String   @id @default(cuid())
+  title     String
+  startsAt  DateTime
+  endsAt    DateTime?
+  calendar  String?
+  color     String?
+  source    String   @default("local") // local | google
+  externalId String? @unique
+  createdAt DateTime @default(now())
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  ok        Boolean
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
