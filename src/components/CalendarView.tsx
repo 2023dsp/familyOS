@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./Icon";
 import { Segmented } from "./Segmented";
-import { AddEventModal } from "./AddEventModal";
+import { AddEventModal, type ExistingEvent } from "./AddEventModal";
 import { DayEventsModal } from "./DayEventsModal";
 
 export type CalEvent = {
@@ -71,6 +71,7 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [addingFor, setAddingFor] = useState<Date | null>(null);
   const [browsingDay, setBrowsingDay] = useState<Date | null>(null);
+  const [editing, setEditing] = useState<ExistingEvent | null>(null);
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -130,12 +131,23 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
 
       <Legend />
 
-      {browsingDay && !addingFor && (
+      {browsingDay && !addingFor && !editing && (
         <DayEventsModal
           date={browsingDay}
           events={events}
           onClose={() => setBrowsingDay(null)}
           onAdd={() => setAddingFor(browsingDay)}
+          onEdit={(e) =>
+            setEditing({
+              id: e.id,
+              title: e.title,
+              description: null,
+              startsAt: e.startsAt,
+              endsAt: e.endsAt,
+              allDay: e.allDay,
+              persona: e.persona ?? null
+            })
+          }
           onChanged={onChanged}
         />
       )}
@@ -147,6 +159,17 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
           }}
           onSaved={() => {
             setAddingFor(null);
+            setBrowsingDay(null);
+            onChanged();
+          }}
+        />
+      )}
+      {editing && (
+        <AddEventModal
+          existing={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
             setBrowsingDay(null);
             onChanged();
           }}
