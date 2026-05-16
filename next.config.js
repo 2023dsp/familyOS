@@ -3,6 +3,6 @@ const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
-  experimental: { serverActions: { bodySizeLimit: "1mb" } }
+  typescript: { ignoreBuildErrors: false }
 };
 module.exports = nextConfig;
