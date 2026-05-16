@@ -79,6 +79,7 @@ export function AddEventModal({
   const [description, setDescription] = useState(existing?.description ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [editing, setEditing] = useState(!isEdit);
 
   useEffect(() => {
     if (autoPersona && title) setPersona(detectPersona(title));
@@ -131,6 +132,63 @@ export function AddEventModal({
     } finally {
       setBusy(false);
     }
+  }
+
+  const personaMeta = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[3];
+  const dueLabelDate = (() => {
+    const [y, m, d] = date.split("-").map((n) => parseInt(n, 10));
+    if (!y || !m || !d) return "";
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  })();
+
+  if (isEdit && !editing) {
+    return (
+      <ModalBackdrop onClose={onClose}>
+        <div style={{ padding: "24px 24px 20px", background: `linear-gradient(160deg, ${personaMeta.soft}, transparent 70%)` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0 }}>
+              <span style={{ width: 12, height: 12, borderRadius: 99, background: personaMeta.color, flexShrink: 0 }} />
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, lineHeight: 1.2, wordBreak: "break-word" }}>{title}</h2>
+            </div>
+            <button onClick={onClose} className="btn-ghost" style={{ width: 36, height: 36, borderRadius: 99, display: "grid", placeItems: "center", flexShrink: 0 }} aria-label="Close">
+              <Icon name="close" color="var(--ink-2)" size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="scroll" style={{ padding: "0 24px", flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <DetailRow label="Who" value={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 13 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 99, background: personaMeta.color }} />
+              {personaMeta.label}
+            </span>
+          } />
+          <DetailRow label="Date" value={<span style={{ fontWeight: 700, fontSize: 13 }}>{dueLabelDate}</span>} />
+          <DetailRow label="Time" value={
+            <span style={{ fontWeight: 700, fontSize: 13 }}>
+              {allDay ? "All day" : `${startTime} – ${endTime}`}
+            </span>
+          } />
+          {description.trim() && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 0", borderTop: "1px solid var(--line)" }}>
+              <span className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Notes</span>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--ink-2)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{description}</p>
+            </div>
+          )}
+        </div>
+
+        {err && <div style={{ padding: "8px 24px 0", color: "var(--danger)", fontWeight: 700, fontSize: 13 }}>{err}</div>}
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, padding: "16px 24px 20px", borderTop: "1px solid var(--line)", background: "var(--surface)" }}>
+          <button className="btn btn-ghost" onClick={remove} disabled={busy} type="button" style={{ color: "var(--danger)" }}>
+            <Icon name="archive" color="var(--danger)" size={14} /> Delete
+          </button>
+          <button className="btn btn-primary" onClick={() => setEditing(true)} type="button" style={{ flex: 1, minWidth: 160 }}>
+            <Icon name="settings" color="white" size={16} /> Edit
+          </button>
+        </div>
+      </ModalBackdrop>
+    );
   }
 
   return (
@@ -265,5 +323,14 @@ export function AddEventModal({
         </button>
       </div>
     </ModalBackdrop>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderTop: "1px solid var(--line)", gap: 12 }}>
+      <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 14, textAlign: "right" }}>{value}</span>
+    </div>
   );
 }
