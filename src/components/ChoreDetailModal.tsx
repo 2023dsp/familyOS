@@ -347,9 +347,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function ReminderEditor({
   chore,
   busy,
-  dueAsDate,
-  reminderAsDate,
-  onPatch
+  dueAsDate
 }: {
   chore: LocalChore;
   busy: boolean;
@@ -357,92 +355,143 @@ function ReminderEditor({
   reminderAsDate: Date | null;
   onPatch: (d: Record<string, unknown>) => Promise<void>;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [date, setDate] = useState(
-    localDateInputValue(reminderAsDate ?? dueAsDate ?? new Date())
-  );
-  const [time, setTime] = useState(
-    reminderAsDate ? localTimeInputValue(reminderAsDate) : "09:00"
-  );
+  type Reminder = { id: string; scheduledAt: string; sentAt: string | null };
+  const [list, setList] = useState<Reminder[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [date, setDate] = useState(localDateInputValue(dueAsDate ?? new Date()));
+  const [time, setTime] = useState("09:00");
+  const [localBusy, setLocalBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  function startEdit() {
-    setDate(localDateInputValue(reminderAsDate ?? dueAsDate ?? new Date()));
-    setTime(reminderAsDate ? localTimeInputValue(reminderAsDate) : "09:00");
-    setEditing(true);
-  }
+  const load = async () => {
+    try {
+      const res = await fetch(`/api/chores/${chore.id}/reminders`, { cache: "no-store" });
+      if (res.ok) setList((await res.json()).reminders);
+    } catch {
+      /* ignore */
+    }
+  };
 
-  async function save() {
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chore.id]);
+
+  async function add() {
     const iso = inputDateTimeToIso(date, time);
     if (!iso) return;
-    await onPatch({ reminderAt: iso });
-    setEditing(false);
+    setLocalBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/chores/${chore.id}/reminders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledAt: iso })
+      });
+      if (!res.ok) throw new Error("Failed to add reminder");
+      setAdding(false);
+      load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setLocalBusy(false);
+    }
   }
 
-  async function clear() {
-    await onPatch({ reminderAt: null });
-    setEditing(false);
+  async function remove(id: string) {
+    setLocalBusy(true);
+    try {
+      await fetch(`/api/chores/${chore.id}/reminders/${id}`, { method: "DELETE" });
+      load();
+    } finally {
+      setLocalBusy(false);
+    }
   }
-
-  const reminderLabel = reminderAsDate
-    ? `${reminderAsDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${reminderAsDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false })}`
-    : null;
 
   return (
-    <Section label="Reminder">
-      {!editing ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {reminderLabel ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 13 }}>
-              <Icon name="clock" color="var(--terracotta)" size={14} /> {reminderLabel}
-            </span>
-          ) : (
-            <span className="muted" style={{ fontSize: 13 }}>None</span>
-          )}
+    <Section label="Reminders">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {list === null && <span className="muted" style={{ fontSize: 12 }}>Loading…</span>}
+        {list?.length === 0 && <span className="muted" style={{ fontSize: 13 }}>No reminders set.</span>}
+        {list?.map((r) => {
+          const d = new Date(r.scheduledAt);
+          const label = `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+          const sent = !!r.sentAt;
+          return (
+            <div
+              key={r.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderRadius: 12,
+                background: sent ? "rgba(0,0,0,0.04)" : "var(--terracotta-soft)",
+                color: sent ? "var(--ink-3)" : "var(--terracotta-deep)"
+              }}
+            >
+              <Icon name="clock" color={sent ? "var(--ink-3)" : "var(--terracotta)"} size={14} />
+              <span style={{ flex: 1, fontWeight: 700, fontSize: 13 }}>{label}</span>
+              {sent && <span style={{ fontSize: 11, fontWeight: 700 }}>sent</span>}
+              <button
+                type="button"
+                onClick={() => remove(r.id)}
+                disabled={busy || localBusy}
+                aria-label="Delete reminder"
+                style={{ padding: 4, borderRadius: 8, color: "var(--danger)" }}
+              >
+                <Icon name="archive" color="var(--danger)" size={14} />
+              </button>
+            </div>
+          );
+        })}
+
+        {!adding ? (
           <button
             type="button"
-            onClick={startEdit}
-            disabled={busy}
+            onClick={() => {
+              setDate(localDateInputValue(dueAsDate ?? new Date()));
+              setTime("09:00");
+              setAdding(true);
+            }}
+            disabled={busy || localBusy}
             className="btn btn-ghost"
-            style={{ padding: "6px 12px", fontSize: 12 }}
+            style={{ padding: "6px 12px", fontSize: 12, alignSelf: "flex-start" }}
           >
-            <Icon name="clock" color="var(--ink-2)" size={14} /> {reminderLabel ? "Edit" : "Set reminder"}
+            <Icon name="plus" color="var(--ink-2)" size={14} /> Add reminder
           </button>
-          {reminderLabel && (
-            <button type="button" onClick={clear} disabled={busy} className="btn btn-ghost" style={{ padding: "6px 12px", fontSize: 12, color: "var(--danger)" }}>
-              Clear
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: 8, background: "var(--surface-2)", borderRadius: 12 }}>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              disabled={localBusy}
+              style={{
+                border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
+                padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
+              }}
+            />
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              disabled={localBusy}
+              style={{
+                border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
+                padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
+              }}
+            />
+            <button className="btn btn-primary" type="button" onClick={add} disabled={localBusy} style={{ padding: "6px 14px" }}>
+              <Icon name="check" color="white" size={14} /> Save
             </button>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            disabled={busy}
-            style={{
-              border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
-              padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
-            }}
-          />
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            disabled={busy}
-            style={{
-              border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
-              padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
-            }}
-          />
-          <button className="btn btn-primary" type="button" onClick={save} disabled={busy} style={{ padding: "6px 14px" }}>
-            <Icon name="check" color="white" size={14} /> Save
-          </button>
-          <button className="btn btn-ghost" type="button" onClick={() => setEditing(false)} disabled={busy} style={{ padding: "6px 12px", fontSize: 12 }}>
-            Cancel
-          </button>
-        </div>
-      )}
+            <button className="btn btn-ghost" type="button" onClick={() => setAdding(false)} disabled={localBusy} style={{ padding: "6px 12px", fontSize: 12 }}>
+              Cancel
+            </button>
+          </div>
+        )}
+        {err && <span style={{ color: "var(--danger)", fontSize: 12, fontWeight: 700 }}>{err}</span>}
+      </div>
     </Section>
   );
 }

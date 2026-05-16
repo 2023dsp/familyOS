@@ -90,12 +90,25 @@ model Chore {
   googleEventId   String?      @unique
   googleSyncedAt  DateTime?
 
-  reminderAt      DateTime?
+  reminderAt      DateTime?  // legacy single reminder (kept for back-compat)
   reminderSentAt  DateTime?
+
+  reminders       ChoreReminder[]
 
   completions     ChoreCompletion[]
 
   @@index([status, dueDate])
+}
+
+model ChoreReminder {
+  id          String   @id @default(cuid())
+  choreId     String
+  chore       Chore    @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([scheduledAt, sentAt])
 }
 
 model ChoreCompletion {

@@ -11,32 +11,49 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const now = new Date();
-  // Find chores whose reminder has come due but hasn't been fired yet.
-  const due = await prisma.chore.findMany({
-    where: {
-      status: "active",
-      reminderAt: { lte: now, not: null },
-      reminderSentAt: null
-    },
-    select: { id: true, title: true, reminderAt: true }
-  });
 
+  // 1) Multi-reminder rows (new model)
+  const dueMulti = await prisma.choreReminder.findMany({
+    where: { sentAt: null, scheduledAt: { lte: now } },
+    include: { chore: { select: { title: true, status: true } } }
+  });
   let fired = 0;
-  for (const ch of due) {
+  for (const r of dueMulti) {
+    if (r.chore.status === "archived") {
+      // skip archived chores but still mark sent so we don't re-evaluate
+      await prisma.choreReminder.update({ where: { id: r.id }, data: { sentAt: new Date() } });
+      continue;
+    }
     try {
       await sendToAll({
         title: "⏰ Reminder",
-        body: ch.title,
+        body: r.chore.title,
         url: "/",
-        tag: `reminder-${ch.id}`
+        tag: `reminder-${r.id}`
       });
       fired++;
     } catch {
-      /* ignore push errors per-chore */
+      /* ignore */
+    }
+    await prisma.choreReminder.update({ where: { id: r.id }, data: { sentAt: new Date() } });
+  }
+
+  // 2) Legacy single reminderAt (back-compat)
+  const dueLegacy = await prisma.chore.findMany({
+    where: { status: "active", reminderAt: { lte: now, not: null }, reminderSentAt: null },
+    select: { id: true, title: true }
+  });
+  for (const ch of dueLegacy) {
+    try {
+      await sendToAll({ title: "⏰ Reminder", body: ch.title, url: "/", tag: `reminder-legacy-${ch.id}` });
+      fired++;
+    } catch {
+      /* ignore */
     }
     await prisma.chore.update({ where: { id: ch.id }, data: { reminderSentAt: new Date() } });
   }
-  return NextResponse.json({ ok: true, fired, considered: due.length });
+
+  return NextResponse.json({ ok: true, fired, multi: dueMulti.length, legacy: dueLegacy.length });
 }
 
 export const GET = handler;
