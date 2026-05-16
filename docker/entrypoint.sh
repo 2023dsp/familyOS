@@ -6,7 +6,7 @@ node node_modules/prisma/build/index.js db push --skip-generate --accept-data-lo
 
 if [ "${RUN_SEED:-true}" = "true" ]; then
   echo "FamilyOS · seeding templates / family members…"
-  node node_modules/tsx/dist/cli.mjs prisma/seed.ts || echo "Seed step finished (errors ignored)."
+  node prisma/seed.cjs || echo "Seed step finished (errors ignored)."
 fi
 
 echo "FamilyOS · starting server on port ${PORT:-3000}"
