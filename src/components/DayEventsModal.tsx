@@ -39,12 +39,14 @@ export function DayEventsModal({
   events,
   onClose,
   onAdd,
+  onEdit,
   onChanged
 }: {
   date: Date;
   events: CalEvent[];
   onClose: () => void;
   onAdd: () => void;
+  onEdit: (e: CalEvent) => void;
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -111,8 +113,10 @@ export function DayEventsModal({
             const timeLabel = e.allDay ? "All day" : `${fmtTime(start)}${end ? ` – ${fmtTime(end)}` : ""}`;
             const isGoogle = e.source === "google";
             return (
-              <div
+              <button
                 key={e.id}
+                type="button"
+                onClick={() => onEdit(e)}
                 style={{
                   display: "flex",
                   gap: 12,
@@ -120,7 +124,10 @@ export function DayEventsModal({
                   background: softFor(c),
                   borderRadius: 14,
                   borderLeft: `4px solid ${c}`,
-                  alignItems: "center"
+                  alignItems: "center",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  width: "100%"
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -131,17 +138,19 @@ export function DayEventsModal({
                     {isGoogle ? " · Google" : ""}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => remove(e.id)}
-                  disabled={busy === e.id}
-                  className="btn-ghost"
-                  style={{ padding: 8, color: "var(--danger)", borderRadius: 10 }}
+                <Icon name="chevron" color="var(--ink-3)" size={14} />
+                <span
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    remove(e.id);
+                  }}
+                  role="button"
                   aria-label="Delete"
+                  style={{ padding: 8, color: "var(--danger)", borderRadius: 10, display: "inline-flex", opacity: busy === e.id ? 0.4 : 1 }}
                 >
                   <Icon name="archive" color="var(--danger)" size={14} />
-                </button>
-              </div>
+                </span>
+              </button>
             );
           })
         )}

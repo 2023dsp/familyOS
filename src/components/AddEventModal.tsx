@@ -42,27 +42,41 @@ function detectPersona(title: string): Persona {
   return "other";
 }
 
+export type ExistingEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  allDay: boolean;
+  persona?: string | null;
+};
+
 export function AddEventModal({
   onClose,
   onSaved,
-  initialDate
+  initialDate,
+  existing
 }: {
   onClose: () => void;
   onSaved: () => void;
   initialDate?: Date;
+  existing?: ExistingEvent;
 }) {
-  const seed = initialDate ?? new Date();
-  const [title, setTitle] = useState("");
+  const isEdit = !!existing;
+  const seed = existing ? new Date(existing.startsAt) : initialDate ?? new Date();
+  const endSeed = existing && existing.endsAt ? new Date(existing.endsAt) : new Date(seed.getTime() + 60 * 60 * 1000);
+
+  const [title, setTitle] = useState(existing?.title ?? "");
   const [date, setDate] = useState(localToInputDate(seed));
-  const [allDay, setAllDay] = useState(false);
+  const [allDay, setAllDay] = useState(existing?.allDay ?? false);
   const [startTime, setStartTime] = useState(localToInputTime(seed));
-  const [endTime, setEndTime] = useState(() => {
-    const e = new Date(seed.getTime() + 60 * 60 * 1000);
-    return localToInputTime(e);
-  });
-  const [persona, setPersona] = useState<Persona>("other");
-  const [autoPersona, setAutoPersona] = useState(true);
-  const [description, setDescription] = useState("");
+  const [endTime, setEndTime] = useState(localToInputTime(endSeed));
+  const [persona, setPersona] = useState<Persona>(
+    (existing?.persona as Persona) ?? "other"
+  );
+  const [autoPersona, setAutoPersona] = useState(!isEdit);
+  const [description, setDescription] = useState(existing?.description ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -77,8 +91,10 @@ export function AddEventModal({
     try {
       const startsAt = inputsToIso(date, allDay ? "00:00" : startTime);
       const endsAt = inputsToIso(date, allDay ? "23:59" : endTime);
-      const res = await fetch("/api/calendar/events", {
-        method: "POST",
+      const url = isEdit ? `/api/calendar/events/${existing!.id}` : "/api/calendar/events";
+      const method = isEdit ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -101,13 +117,29 @@ export function AddEventModal({
     }
   }
 
+  async function remove() {
+    if (!existing) return;
+    if (!confirm("Delete this event?")) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/calendar/events/${existing.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      onSaved();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <ModalBackdrop onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "20px 24px 8px" }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>New event</h2>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{isEdit ? "Edit event" : "New event"}</h2>
           <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 13 }}>
-            Color follows the person. Try titles like &quot;Davide serata fuori&quot; or &quot;Luize viaggio Svizzera&quot;.
+            {isEdit ? "Update fields and tap Save." : "Color follows the person. Try titles like \"Davide serata fuori\"."}
           </p>
         </div>
         <button onClick={onClose} className="btn-ghost" style={{ width: 36, height: 36, borderRadius: 99, display: "grid", placeItems: "center" }} aria-label="Close">
@@ -222,10 +254,15 @@ export function AddEventModal({
         {err && <div style={{ color: "var(--danger)", fontSize: 13, fontWeight: 700 }}>{err}</div>}
       </div>
 
-      <div style={{ display: "flex", gap: 12, padding: "16px 24px 20px", borderTop: "1px solid var(--line)", background: "var(--surface)" }}>
-        <button className="btn btn-ghost" onClick={onClose} type="button" style={{ flex: 0.4 }}>Cancel</button>
-        <button className="btn btn-primary" onClick={save} disabled={busy || !title.trim()} type="button" style={{ flex: 1 }}>
-          <Icon name="check" color="white" size={16} /> {busy ? "Saving…" : "Add event"}
+      <div style={{ display: "flex", gap: 10, padding: "16px 24px 20px", borderTop: "1px solid var(--line)", background: "var(--surface)", flexWrap: "wrap" }}>
+        <button className="btn btn-ghost" onClick={onClose} type="button">Cancel</button>
+        {isEdit && (
+          <button className="btn btn-ghost" onClick={remove} disabled={busy} type="button" style={{ color: "var(--danger)" }}>
+            <Icon name="archive" color="var(--danger)" size={14} /> Delete
+          </button>
+        )}
+        <button className="btn btn-primary" onClick={save} disabled={busy || !title.trim()} type="button" style={{ flex: 1, minWidth: 160 }}>
+          <Icon name="check" color="white" size={16} /> {busy ? "Saving…" : isEdit ? "Save changes" : "Add event"}
         </button>
       </div>
     </ModalBackdrop>

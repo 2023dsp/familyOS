@@ -28,10 +28,11 @@ export function ModalBackdrop({
         background: "rgba(20,15,10,0.32)",
         backdropFilter: "blur(2px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
         zIndex: 100,
-        padding: 16,
+        padding: "32px 16px",
+        overflowY: "auto",
         animation: "fadeIn 0.18s ease both"
       }}
     >
@@ -43,11 +44,10 @@ export function ModalBackdrop({
           background: "var(--surface)",
           borderRadius: 28,
           width: "min(620px, 100%)",
-          maxHeight: "calc(100vh - 32px)",
+          margin: "auto",
           boxShadow: "var(--shadow-xl)",
           display: "flex",
-          flexDirection: "column",
-          overflow: "hidden"
+          flexDirection: "column"
         }}
       >
         {children}
