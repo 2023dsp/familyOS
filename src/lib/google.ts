@@ -128,7 +128,8 @@ export async function pushLocalEventToGoogle(eventId: string): Promise<void> {
   const ctx = await getAuthedClient();
   if (!ctx) return;
   const ev = await prisma.calendarEvent.findUnique({ where: { id: eventId } });
-  if (!ev || ev.source !== "local") return;
+  if (!ev) return;
+  // Push for: app-created events, OR Google-sourced events that we modified.
   const cal = google.calendar({ version: "v3", auth: ctx.oauth });
 
   const startDate = ev.startsAt;

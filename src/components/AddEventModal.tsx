@@ -153,7 +153,6 @@ export function AddEventModal({
           placeholder='Title (e.g. "Davide serata fuori")'
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          autoFocus
           style={{ fontSize: 16 }}
         />
 

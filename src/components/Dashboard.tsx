@@ -188,7 +188,7 @@ export function Dashboard() {
       <Header dateLabel={dateLabel} onLogout={logout} />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
-        <main className="scroll" style={{ flex: 1, padding: isWide ? "16px 36px 120px" : "12px 16px 96px", minWidth: 0 }}>
+        <main className="scroll" style={{ flex: 1, padding: isWide ? "16px 36px 60px" : "12px 16px 76px", minWidth: 0 }}>
           {tab === "home" && (
             <Home
               isWide={isWide}
@@ -321,7 +321,12 @@ function SideNav({
         flexDirection: "column",
         alignItems: "center",
         gap: 16,
-        flexShrink: 0
+        flexShrink: 0,
+        position: "sticky",
+        top: 0,
+        alignSelf: "flex-start",
+        maxHeight: "100vh",
+        overflowY: "auto"
       }}
     >
       <button
@@ -410,7 +415,7 @@ function MobileTabBar({
         bottom: 0,
         left: 0,
         right: 0,
-        padding: "10px 12px calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        padding: "8px 12px calc(env(safe-area-inset-bottom, 0px) + 4px)",
         background: "linear-gradient(to top, var(--surface) 70%, transparent)",
         display: "flex",
         alignItems: "center",
