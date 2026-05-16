@@ -99,6 +99,24 @@ export function ChoreDetailModal({ chore, onClose, onChanged }: { chore: ChoreRo
     }
   }
 
+  async function togglePin() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/chores/${chore.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ important: !chore.important })
+      });
+      if (!res.ok) throw new Error("Failed");
+      onChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function reassign(slug: AssigneeSlug) {
     setBusy(true);
     try {
@@ -129,9 +147,29 @@ export function ChoreDetailModal({ chore, onClose, onChanged }: { chore: ChoreRo
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="btn-ghost" style={{ width: 36, height: 36, borderRadius: 99, display: "grid", placeItems: "center" }} aria-label="Close">
-            <Icon name="close" color="var(--ink-2)" size={18} />
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={togglePin}
+              disabled={busy}
+              type="button"
+              aria-label={chore.important ? "Unpin from important" : "Pin to important"}
+              title={chore.important ? "Unpin" : "Pin to important"}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 99,
+                display: "grid",
+                placeItems: "center",
+                background: chore.important ? "var(--terracotta-soft)" : "rgba(0,0,0,0.04)",
+                border: chore.important ? "1.5px solid var(--terracotta)" : "1.5px solid transparent"
+              }}
+            >
+              <Icon name="sparkles" color={chore.important ? "var(--terracotta-deep)" : "var(--ink-3)"} size={16} />
+            </button>
+            <button onClick={onClose} className="btn-ghost" style={{ width: 36, height: 36, borderRadius: 99, display: "grid", placeItems: "center" }} aria-label="Close">
+              <Icon name="close" color="var(--ink-2)" size={18} />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -69,6 +69,7 @@ model Chore {
   recurDayOfMonth Int?         // monthly anchor day
 
   status          ChoreStatus  @default(active)
+  important       Boolean      @default(false)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   completedAt     DateTime?

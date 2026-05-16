@@ -15,7 +15,8 @@ export const choreInputSchema = z.object({
   recurInterval: z.number().int().min(1).max(365).nullable().optional(),
   recurUnit: z.enum(["day", "week", "month"]).nullable().optional(),
   recurDaysOfWeek: z.string().max(60).nullable().optional(),
-  recurDayOfMonth: z.number().int().min(1).max(28).nullable().optional()
+  recurDayOfMonth: z.number().int().min(1).max(28).nullable().optional(),
+  important: z.boolean().optional()
 });
 
 export type ChoreInput = z.infer<typeof choreInputSchema>;
@@ -41,7 +42,8 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
       recurInterval: input.isRecurring ? input.recurInterval ?? 1 : null,
       recurUnit: input.isRecurring ? input.recurUnit ?? "week" : null,
       recurDaysOfWeek: input.recurDaysOfWeek ?? null,
-      recurDayOfMonth: input.recurDayOfMonth ?? null
+      recurDayOfMonth: input.recurDayOfMonth ?? null,
+      important: input.important ?? false
     }
   });
 }
@@ -60,6 +62,7 @@ export async function updateChore(id: string, input: Partial<ChoreInput>): Promi
   if (input.recurUnit !== undefined) data.recurUnit = input.recurUnit;
   if (input.recurDaysOfWeek !== undefined) data.recurDaysOfWeek = input.recurDaysOfWeek;
   if (input.recurDayOfMonth !== undefined) data.recurDayOfMonth = input.recurDayOfMonth;
+  if (input.important !== undefined) data.important = input.important;
   return prisma.chore.update({ where: { id }, data });
 }
 

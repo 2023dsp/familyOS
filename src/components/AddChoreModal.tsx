@@ -66,6 +66,7 @@ export function AddChoreModal({
   const [recurInterval, setRecurInterval] = useState<number | null>(prefill?.recurInterval ?? null);
   const [recurUnit, setRecurUnit] = useState<RecurrenceUnit | null>(prefill?.recurUnit ?? null);
   const [notes, setNotes] = useState("");
+  const [important, setImportant] = useState(false);
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -130,7 +131,8 @@ export function AddChoreModal({
           dueDate: dueInputToIso(due),
           isRecurring: hasRecur,
           recurInterval: recurInterval ?? undefined,
-          recurUnit: recurUnit ?? undefined
+          recurUnit: recurUnit ?? undefined,
+          important
         })
       });
       if (!res.ok) {
@@ -325,6 +327,29 @@ export function AddChoreModal({
               );
             })}
           </div>
+        </Section>
+
+        <Section label="Pin to important">
+          <button
+            type="button"
+            onClick={() => setImportant((v) => !v)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: important ? "var(--terracotta-soft)" : "rgba(0,0,0,0.04)",
+              border: important ? "1.5px solid var(--terracotta)" : "1.5px solid transparent",
+              color: important ? "var(--terracotta-deep)" : "var(--ink-2)",
+              fontWeight: 700,
+              fontSize: 13,
+              alignSelf: "flex-start"
+            }}
+          >
+            <Icon name="sparkles" color={important ? "var(--terracotta-deep)" : "var(--ink-3)"} size={16} />
+            {important ? "Pinned · shows on the dashboard top" : "Not pinned · pin big decisions like \"School choice for Ellie\""}
+          </button>
         </Section>
 
         <Section label="Notes (optional)">

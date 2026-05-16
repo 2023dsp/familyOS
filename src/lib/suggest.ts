@@ -125,4 +125,17 @@ export class RuleSuggestionProvider implements SuggestionProvider {
   }
 }
 
-export const defaultSuggestionProvider: SuggestionProvider = new RuleSuggestionProvider();
+async function pickProvider(): Promise<SuggestionProvider> {
+  if (process.env.OPENAI_API_KEY) {
+    const mod = await import("./suggest-openai");
+    return new mod.OpenAISuggestionProvider();
+  }
+  return new RuleSuggestionProvider();
+}
+
+export const defaultSuggestionProvider: SuggestionProvider = {
+  async suggest(title: string) {
+    const p = await pickProvider();
+    return p.suggest(title);
+  }
+};

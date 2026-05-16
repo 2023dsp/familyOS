@@ -20,6 +20,7 @@ export type ChoreRowData = {
   recurUnit: RecurrenceUnit | null;
   recurDaysOfWeek: string | null;
   done: boolean;
+  important: boolean;
 };
 
 export function PriorityDots({ p }: { p: PriorityKey }) {

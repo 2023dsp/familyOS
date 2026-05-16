@@ -30,6 +30,7 @@ type ApiChore = {
   recurDaysOfWeek: string | null;
   status: "active" | "completed" | "archived";
   completedAt: string | null;
+  important: boolean;
 };
 
 type Template = {
@@ -76,7 +77,8 @@ function toRowData(c: ApiChore): ChoreRowData {
     recurInterval: c.recurInterval,
     recurUnit: c.recurUnit,
     recurDaysOfWeek: c.recurDaysOfWeek,
-    done: c.status === "completed"
+    done: c.status === "completed",
+    important: !!c.important
   };
 }
 
@@ -85,6 +87,7 @@ export function Dashboard() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
   const [tab, setTab] = useState<"home" | "calendar" | "templates" | "settings">("home");
@@ -111,6 +114,7 @@ export function Dashboard() {
     if (tRes.ok) setTemplates((await tRes.json()).templates);
     if (sRes.ok) setStats(await sRes.json());
     if (eRes.ok) setEvents((await eRes.json()).events);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -134,6 +138,10 @@ export function Dashboard() {
   );
   const recurringNext = useMemo(
     () => chores.filter((c) => c.isRecurring && c.status !== "archived").slice(0, 6),
+    [chores]
+  );
+  const importantTasks = useMemo(
+    () => chores.filter((c) => c.important && c.status !== "archived"),
     [chores]
   );
 
@@ -185,6 +193,8 @@ export function Dashboard() {
               setFilter={setFilter}
               filtered={filtered.map(toRowData)}
               events={events}
+              importantTasks={importantTasks.map(toRowData)}
+              loading={loading}
               onToggle={toggle}
               onOpen={(c) => setOpened(c)}
               onAdd={() => setAdding({})}
@@ -450,6 +460,8 @@ type HomeProps = {
   setFilter: (v: HomeProps["filter"]) => void;
   filtered: ChoreRowData[];
   events: CalEvent[];
+  importantTasks: ChoreRowData[];
+  loading: boolean;
   onToggle: (id: string, done: boolean) => void;
   onOpen: (c: ChoreRowData) => void;
   onAdd: () => void;
@@ -460,7 +472,7 @@ function Home(p: HomeProps) {
 }
 
 function TabletHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, upcoming, recurringNext, onToggle, onOpen, onAdd } = p;
+  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd } = p;
   const week = stats?.week ?? { done: 0, total: 0 };
   const score = stats?.score ?? 0;
   const streak = stats?.streak ?? 0;
@@ -539,6 +551,27 @@ function TabletHome(p: HomeProps) {
         </div>
       </div>
 
+      {(importantTasks.length > 0 || loading) && (
+        <div className="card" style={{ background: "linear-gradient(135deg, var(--terracotta-soft) 0%, var(--surface) 70%)", borderLeft: "6px solid var(--terracotta)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Icon name="sparkles" color="var(--terracotta-deep)" size={22} />
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--terracotta-deep)" }}>Important right now</h2>
+            </div>
+            <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Big decisions · pin from any chore</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {loading && importantTasks.length === 0 && <SkeletonRow />}
+            {!loading && importantTasks.length === 0 && (
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing pinned. Pin chores from their detail view (the star button) to flag big decisions like &quot;School choice for Ellie&quot;.</p>
+            )}
+            {importantTasks.map((c) => (
+              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
@@ -546,7 +579,14 @@ function TabletHome(p: HomeProps) {
             <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Tap the circle to complete · the row to open</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {todayChores.length === 0 && (
+            {loading && todayChores.length === 0 && (
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
+            )}
+            {!loading && todayChores.length === 0 && (
               <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)" }}>
                 <Icon name="trophy" color="var(--sand)" size={36} />
                 <p style={{ margin: "8px 0 0", fontWeight: 700 }}>Nothing left for today. The home is sorted.</p>
@@ -590,7 +630,7 @@ function TabletHome(p: HomeProps) {
 }
 
 function MobileHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, recurringNext, filter, setFilter, filtered, onToggle, onOpen } = p;
+  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, recurringNext, filter, setFilter, filtered, loading, onToggle, onOpen } = p;
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
@@ -648,7 +688,13 @@ function MobileHome(p: HomeProps) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {filtered.length === 0 && (
+        {loading && filtered.length === 0 && (
+          <>
+            <SkeletonRow dense />
+            <SkeletonRow dense />
+          </>
+        )}
+        {!loading && filtered.length === 0 && (
           <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
             <Icon name="trophy" color="var(--sand)" size={28} />
             <p style={{ margin: "6px 0 0", fontWeight: 700 }}>Nothing here. Nice.</p>
@@ -750,6 +796,31 @@ function EventList({ events }: { events: CalEvent[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function SkeletonRow({ dense = false }: { dense?: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: dense ? 12 : 16,
+        padding: dense ? "12px 14px" : "18px 18px",
+        background: "var(--surface-2)",
+        borderRadius: 24,
+        border: "1px solid var(--line)",
+        opacity: 0.55,
+        animation: "pulseSoft 1.4s ease-in-out infinite"
+      }}
+    >
+      <span style={{ width: dense ? 28 : 36, height: dense ? 28 : 36, borderRadius: 999, background: "var(--surface-3)" }} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+        <span style={{ height: 14, width: "60%", borderRadius: 6, background: "var(--surface-3)" }} />
+        <span style={{ height: 10, width: "30%", borderRadius: 6, background: "var(--surface-3)" }} />
+      </div>
+      <span style={{ width: dense ? 26 : 32, height: dense ? 26 : 32, borderRadius: 999, background: "var(--surface-3)" }} />
     </div>
   );
 }
