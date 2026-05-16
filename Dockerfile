@@ -6,13 +6,15 @@ ENV PNPM_HOME=/pnpm \
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# --- Dependencies ---
+# --- Dependencies (include devDependencies for build) ---
 FROM base AS deps
+ENV NODE_ENV=development
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
 
 # --- Builder ---
 FROM base AS builder
+ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
