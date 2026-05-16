@@ -1,54 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { WeatherIcon, weatherLabel } from "./WeatherIcon";
 
 type Daily = { date: string; min: number; max: number; code: number };
 type Current = { tempNow: number; min: number; max: number; code: number };
+type Config = { lat: number; lon: number; label: string };
 
-const WMO: Record<number, { label: string; emoji: string }> = {
-  0: { label: "Clear", emoji: "☀️" },
-  1: { label: "Mostly clear", emoji: "🌤️" },
-  2: { label: "Partly cloudy", emoji: "⛅" },
-  3: { label: "Overcast", emoji: "☁️" },
-  45: { label: "Fog", emoji: "🌫️" },
-  48: { label: "Rime fog", emoji: "🌫️" },
-  51: { label: "Drizzle", emoji: "🌦️" },
-  53: { label: "Drizzle", emoji: "🌦️" },
-  55: { label: "Drizzle", emoji: "🌦️" },
-  61: { label: "Rain", emoji: "🌧️" },
-  63: { label: "Rain", emoji: "🌧️" },
-  65: { label: "Heavy rain", emoji: "🌧️" },
-  71: { label: "Snow", emoji: "🌨️" },
-  73: { label: "Snow", emoji: "🌨️" },
-  75: { label: "Heavy snow", emoji: "❄️" },
-  80: { label: "Showers", emoji: "🌦️" },
-  81: { label: "Showers", emoji: "🌦️" },
-  82: { label: "Heavy showers", emoji: "⛈️" },
-  95: { label: "Thunder", emoji: "⛈️" },
-  96: { label: "Thunder", emoji: "⛈️" },
-  99: { label: "Thunder", emoji: "⛈️" }
-};
-
-function code(c: number) {
-  return WMO[c] ?? { label: "—", emoji: "🌡️" };
-}
-
-const LAT = parseFloat(process.env.NEXT_PUBLIC_WEATHER_LAT ?? "45.4642"); // Milan default
-const LON = parseFloat(process.env.NEXT_PUBLIC_WEATHER_LON ?? "9.19");
-const LABEL = process.env.NEXT_PUBLIC_WEATHER_LABEL ?? "Milan";
+const ENV_LAT = process.env.NEXT_PUBLIC_WEATHER_LAT;
+const ENV_LON = process.env.NEXT_PUBLIC_WEATHER_LON;
+const ENV_LABEL = process.env.NEXT_PUBLIC_WEATHER_LABEL ?? "Home";
 
 export function WeatherCard({ compact = false }: { compact?: boolean }) {
+  const [config, setConfig] = useState<Config | null>(null);
   const [current, setCurrent] = useState<Current | null>(null);
   const [daily, setDaily] = useState<Daily[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const loadConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/weather", { cache: "no-store" });
+      if (res.ok) {
+        const j = await res.json();
+        if (j.config) {
+          setConfig(j.config);
+          return;
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+    const envLat = ENV_LAT ? parseFloat(ENV_LAT) : NaN;
+    const envLon = ENV_LON ? parseFloat(ENV_LON) : NaN;
+    if (Number.isFinite(envLat) && Number.isFinite(envLon)) {
+      setConfig({ lat: envLat, lon: envLon, label: ENV_LABEL });
+    } else {
+      setConfig(null);
+    }
+  }, []);
+
   useEffect(() => {
+    loadConfig();
+    const onChange = () => loadConfig();
+    window.addEventListener("familyos-weather-config", onChange);
+    return () => window.removeEventListener("familyos-weather-config", onChange);
+  }, [loadConfig]);
+
+  useEffect(() => {
+    if (!config) return;
     let cancelled = false;
     async function load() {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=7`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${config!.lat}&longitude=${config!.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=7`;
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("Forecast unavailable");
         const j = await res.json();
@@ -67,6 +72,7 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
         }));
         setCurrent(c);
         setDaily(d);
+        setError(null);
       } catch (e) {
         setError((e as Error).message);
       }
@@ -77,7 +83,19 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
       cancelled = true;
       clearInterval(t);
     };
-  }, []);
+  }, [config]);
+
+  if (!config) {
+    return (
+      <div className="card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(160deg, var(--sand-soft), var(--surface))" }}>
+        <Icon name="sun" color="var(--sand)" size={22} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Weather</div>
+          <div className="muted" style={{ fontSize: 12 }}>Set a location in Settings → Weather.</div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -96,7 +114,8 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
     );
   }
 
-  const c = code(current.code);
+  const hour = new Date().getHours();
+  const isNight = hour < 6 || hour >= 20;
 
   return (
     <button
@@ -107,7 +126,7 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
         padding: 16,
         display: "flex",
         flexDirection: "column",
-        gap: open ? 14 : 0,
+        gap: open ? 12 : 0,
         background: "linear-gradient(160deg, var(--sand-soft), var(--surface))",
         textAlign: "left",
         cursor: "pointer",
@@ -115,19 +134,21 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: compact ? 30 : 38 }}>{c.emoji}</span>
+        <WeatherIcon code={current.code} size={compact ? 40 : 48} isNight={isNight} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontSize: compact ? 26 : 30, fontWeight: 800, lineHeight: 1, color: "var(--ink)" }}>
               {current.tempNow}°
             </span>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>{LABEL}</span>
+            <span className="muted" style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {config.label}
+            </span>
           </div>
           <div className="muted" style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>
-            {c.label} · {current.min}° / {current.max}°
+            {weatherLabel(current.code)} · {current.min}° / {current.max}°
           </div>
         </div>
-        <Icon name="chevron" color="var(--ink-3)" size={14} className={open ? "rot-90" : undefined} />
+        <Icon name="chevron" color="var(--ink-3)" size={14} />
       </div>
 
       {open && (
@@ -137,7 +158,6 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
             const isToday = i === 0;
             const dow = dt.toLocaleDateString(undefined, { weekday: "short" });
             const dnum = dt.getDate();
-            const k = code(d.code);
             return (
               <div
                 key={d.date}
@@ -156,7 +176,7 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
                   {dow}
                 </span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)" }}>{dnum}</span>
-                <span style={{ fontSize: 22, lineHeight: 1 }}>{k.emoji}</span>
+                <WeatherIcon code={d.code} size={28} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink)" }}>{d.max}°</span>
                 <span style={{ fontSize: 10, color: "var(--ink-3)", fontWeight: 600 }}>{d.min}°</span>
               </div>
