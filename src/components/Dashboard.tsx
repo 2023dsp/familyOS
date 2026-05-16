@@ -16,6 +16,7 @@ import { PushSubscribeCard } from "./PushSubscribeCard";
 import { NotificationScheduleCard } from "./NotificationScheduleCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
 import { PullToRefresh } from "./PullToRefresh";
+import { WeatherCard } from "./WeatherCard";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
 import { CategoriesProvider, useCategories } from "./CategoriesContext";
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
@@ -593,26 +594,28 @@ function TabletHome(p: HomeProps) {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 14 }}>
         <div className="card" style={{ background: "linear-gradient(135deg, var(--surface), var(--bg-2))" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Today</span>
             <span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>
-              <Icon name="check" color="var(--olive)" size={12} /> {completedToday}/{todayChores.length} done
+              <Icon name="check" color="var(--olive)" size={12} /> {completedToday}/{todayChores.length}
             </span>
           </div>
-          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <Ring value={completedToday} max={todayChores.length || 1} size={120} stroke={12} color="var(--olive)" label={`${completedToday}/${todayChores.length}`} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.1 }}>
-                {remainingToday > 0 ? `${remainingToday} to go` : "All done — nice."}
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <Ring value={completedToday} max={todayChores.length || 1} size={96} stroke={10} color="var(--olive)" label={`${completedToday}/${todayChores.length}`} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1 }}>
+                {remainingToday > 0 ? `${remainingToday} to go` : "All done."}
               </div>
-              <div className="muted" style={{ fontSize: 14, marginTop: 4 }}>
-                {remainingToday > 0 ? "Knock one out together after coffee." : "The home is in good order."}
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {remainingToday > 0 ? "After coffee?" : "Home in order."}
               </div>
             </div>
           </div>
         </div>
+
+        <WeatherCard compact />
 
         <div className="card">
           <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>This week</span>
@@ -670,57 +673,60 @@ function TabletHome(p: HomeProps) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Today&apos;s chores</h2>
-            <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Tap the circle to complete · the row to open</span>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, alignItems: "stretch" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, alignItems: "center" }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Today&apos;s chores</h2>
+              <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Tap circle to complete · row to open</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {loading && todayChores.length === 0 && (
+                <>
+                  <SkeletonRow />
+                  <SkeletonRow />
+                </>
+              )}
+              {!loading && todayChores.length === 0 && (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
+                  <Icon name="trophy" color="var(--sand)" size={32} />
+                  <p style={{ margin: "8px 0 0", fontWeight: 700 }}>Nothing left for today. The home is sorted.</p>
+                </div>
+              )}
+              {todayChores.map((c) => (
+                <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
+              ))}
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {loading && todayChores.length === 0 && (
-              <>
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-              </>
-            )}
-            {!loading && todayChores.length === 0 && (
-              <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)" }}>
-                <Icon name="trophy" color="var(--sand)" size={36} />
-                <p style={{ margin: "8px 0 0", fontWeight: 700 }}>Nothing left for today. The home is sorted.</p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="card">
+              <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Coming up</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {upcoming.length === 0 && <p className="muted" style={{ fontSize: 13 }}>Nothing scheduled yet.</p>}
+                {upcoming.slice(0, 4).map((c) => (
+                  <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
+                ))}
               </div>
-            )}
-            {todayChores.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} />
-            ))}
+            </div>
+            <div className="card" style={{ background: "var(--bg-2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Repeats</h2>
+                <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Auto</span>
+              </div>
+              <RecurringList rows={recurringNext.slice(0, 4)} dense />
+            </div>
           </div>
         </div>
 
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>What&apos;s on</h2>
-            <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> {p.events.some((e) => e.source === "google") ? "Google Calendar" : "Local"}</span>
+        <div className="card" style={{ display: "flex", flexDirection: "column", maxHeight: 640, minHeight: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, flexShrink: 0 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>What&apos;s on</h2>
+            <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> {p.events.some((e) => e.source === "google") ? "Google" : "Local"}</span>
           </div>
-          <EventList events={p.events.slice(0, 6)} />
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div className="card">
-          <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 800 }}>Coming up</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {upcoming.length === 0 && <p className="muted">Nothing scheduled yet.</p>}
-            {upcoming.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
-            ))}
+          <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
+            <EventList events={p.events.slice(0, 20)} />
           </div>
-        </div>
-        <div className="card" style={{ background: "var(--bg-2)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Repeats</h2>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Auto-scheduled</span>
-          </div>
-          <RecurringList rows={recurringNext} />
         </div>
       </div>
     </div>
@@ -740,6 +746,8 @@ function MobileHome(p: HomeProps) {
           {remainingToday > 0 ? `${remainingToday} chores left today` : "Nothing left — nice."}
         </p>
       </div>
+
+      <WeatherCard compact />
 
       <div className="card" style={{ padding: 18, background: "linear-gradient(135deg, var(--terracotta-soft), var(--surface))" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -870,7 +878,7 @@ function EventList({ events }: { events: CalEvent[] }) {
               const s = new Date(e.startsAt);
               const timeLabel = e.allDay
                 ? "All day"
-                : s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                : s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
               return (
                 <div
                   key={e.id}

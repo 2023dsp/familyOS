@@ -43,7 +43,7 @@ export function ModalBackdrop({
         style={{
           background: "var(--surface)",
           borderRadius: 28,
-          width: "min(620px, 100%)",
+          width: "min(720px, 100%)",
           marginLeft: "auto",
           marginRight: "auto",
           boxShadow: "var(--shadow-xl)",
