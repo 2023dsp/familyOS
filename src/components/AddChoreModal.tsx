@@ -296,7 +296,10 @@ export function AddChoreModal({
             )}
             {pendingReminders.map((r) => {
               const d = new Date(r.iso);
-              const label = `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+              const timeLabel = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+              const label = recurringEnabled
+                ? `${timeLabel} · every occurrence`
+                : `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${timeLabel}`;
               return (
                 <div
                   key={r.id}
@@ -339,15 +342,22 @@ export function AddChoreModal({
               </button>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: 8, background: "var(--surface-2)", borderRadius: 12 }}>
-                <input
-                  type="date"
-                  value={reminderDate}
-                  onChange={(e) => setReminderDate(e.target.value)}
-                  style={{
-                    border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
-                    padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
-                  }}
-                />
+                {!recurringEnabled && (
+                  <input
+                    type="date"
+                    value={reminderDate}
+                    onChange={(e) => setReminderDate(e.target.value)}
+                    style={{
+                      border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
+                      padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
+                    }}
+                  />
+                )}
+                {recurringEnabled && (
+                  <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
+                    On every occurrence at
+                  </span>
+                )}
                 <input
                   type="time"
                   value={reminderTime}

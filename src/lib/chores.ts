@@ -206,6 +206,23 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
         householdId: c.householdId
       }
     });
+    // Copy assignees (multi-assign) to the new occurrence.
+    const prevAssignees = await prisma.choreAssignee.findMany({ where: { choreId: c.id } });
+    if (prevAssignees.length > 0) {
+      await prisma.choreAssignee.createMany({
+        data: prevAssignees.map((a) => ({ choreId: nextChore!.id, memberId: a.memberId }))
+      });
+    }
+    // Re-schedule reminders to the new dueDate, keeping the original time-of-day.
+    const prevReminders = await prisma.choreReminder.findMany({ where: { choreId: c.id } });
+    if (prevReminders.length > 0) {
+      const data = prevReminders.map((r) => {
+        const scheduledAt = new Date(next);
+        scheduledAt.setHours(r.scheduledAt.getHours(), r.scheduledAt.getMinutes(), 0, 0);
+        return { choreId: nextChore!.id, scheduledAt };
+      });
+      await prisma.choreReminder.createMany({ data });
+    }
   }
 
   return { completed, next: nextChore };

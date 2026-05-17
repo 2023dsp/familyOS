@@ -683,7 +683,10 @@ function ReminderEditor({
         {list?.length === 0 && <span className="muted" style={{ fontSize: 13 }}>No reminders set.</span>}
         {list?.map((r) => {
           const d = new Date(r.scheduledAt);
-          const label = `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+          const timeLabel = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+          const label = chore.isRecurring
+            ? `${timeLabel} · every occurrence`
+            : `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${timeLabel}`;
           const sent = !!r.sentAt;
           return (
             <div
@@ -730,16 +733,23 @@ function ReminderEditor({
           </button>
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: 8, background: "var(--surface-2)", borderRadius: 12 }}>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              disabled={localBusy}
-              style={{
-                border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
-                padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
-              }}
-            />
+            {!chore.isRecurring && (
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                disabled={localBusy}
+                style={{
+                  border: "1.5px solid var(--line-2)", background: "var(--surface)", color: "var(--ink)",
+                  padding: "6px 10px", borderRadius: 12, fontSize: 13, fontWeight: 700, fontFamily: "inherit"
+                }}
+              />
+            )}
+            {chore.isRecurring && (
+              <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
+                On every occurrence at
+              </span>
+            )}
             <input
               type="time"
               value={time}
