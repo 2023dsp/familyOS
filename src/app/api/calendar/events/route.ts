@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { createEvent, eventInputSchema } from "../../../../lib/events";
 import { pushLocalEventToGoogle } from "../../../../lib/google";
+import { getActiveHouseholdId } from "../../../../lib/household";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,8 +13,9 @@ export async function GET(req: NextRequest) {
   const from = fromStr ? new Date(fromStr) : new Date(new Date().setHours(0, 0, 0, 0));
   const to = toStr ? new Date(toStr) : new Date(from.getTime() + 14 * 86400_000);
 
+  const householdId = await getActiveHouseholdId();
   const events = await prisma.calendarEvent.findMany({
-    where: { startsAt: { gte: from, lte: to } },
+    where: { householdId, startsAt: { gte: from, lte: to } },
     orderBy: { startsAt: "asc" }
   });
   return NextResponse.json({ events });

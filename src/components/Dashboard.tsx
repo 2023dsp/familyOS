@@ -180,13 +180,15 @@ export function Dashboard() {
   }, [opened, adding]);
 
   const load = useCallback(async () => {
-    const [cRes, tRes, sRes, eRes, catRes] = await Promise.all([
+    const [cRes, tRes, sRes, eRes, catRes, meRes] = await Promise.all([
       fetch("/api/chores?status=all", { cache: "no-store" }),
       fetch("/api/templates", { cache: "no-store" }),
       fetch("/api/stats", { cache: "no-store" }),
       fetch("/api/calendar/events", { cache: "no-store" }),
-      fetch("/api/categories", { cache: "no-store" })
+      fetch("/api/categories", { cache: "no-store" }),
+      fetch("/api/me", { cache: "no-store" })
     ]);
+    if (meRes.ok) setMe(await meRes.json());
     if (cRes.ok) setChores((await cRes.json()).chores);
     if (tRes.ok) setTemplates((await tRes.json()).templates);
     if (sRes.ok) setStats(await sRes.json());
@@ -294,7 +296,7 @@ export function Dashboard() {
   return (
     <CategoriesProvider value={categories}>
     <div className={`tod-${hello.tod}`} style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <Header dateLabel={dateLabel} onLogout={logout} />
+      <Header dateLabel={dateLabel} onLogout={logout} householdName={me?.household?.name ?? "Family"} />
       <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
         {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
         <PullToRefresh
@@ -318,6 +320,7 @@ export function Dashboard() {
               setFilter={setFilter}
               filtered={filtered.map(toRowData)}
               events={events}
+              householdName={me?.household?.name ?? (process.env.NEXT_PUBLIC_FAMILY_NAMES ?? "Family")}
               importantTasks={importantTasks.map(toRowData)}
               loading={loading}
               onToggle={toggle}
@@ -387,7 +390,7 @@ export function Dashboard() {
   );
 }
 
-function Header({ dateLabel, onLogout }: { dateLabel: string; onLogout: () => void }) {
+function Header({ dateLabel, onLogout, householdName }: { dateLabel: string; onLogout: () => void; householdName: string }) {
   return (
     <header
       style={{
@@ -415,7 +418,7 @@ function Header({ dateLabel, onLogout }: { dateLabel: string; onLogout: () => vo
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: -0.01 }}>FamilyOS</h1>
           <p style={{ margin: 0, fontSize: 12, color: "var(--ink-3)" }}>
-            {process.env.NEXT_PUBLIC_FAMILY_NAMES ?? "Davide & Luize"} · Family operations
+            {householdName} · Family operations
           </p>
         </div>
       </div>
@@ -621,6 +624,7 @@ type HomeProps = {
   setFilter: (v: HomeProps["filter"]) => void;
   filtered: ChoreRowData[];
   events: CalEvent[];
+  householdName: string;
   importantTasks: ChoreRowData[];
   loading: boolean;
   onToggle: (id: string, done: boolean) => void;
@@ -648,7 +652,7 @@ function TabletHome(p: HomeProps) {
             <Icon name={hello.emoji} color="var(--sand)" size={18} /> {dateLabel}
           </div>
           <h1 style={{ margin: "4px 0 6px", fontSize: 40, fontWeight: 800, letterSpacing: -0.02 }}>
-            {hello.greeting}, <span style={{ color: "var(--terracotta)" }}>{process.env.NEXT_PUBLIC_FAMILY_NAMES ?? "Davide & Luize"}</span>
+            {hello.greeting}, <span style={{ color: "var(--terracotta)" }}>{p.householdName}</span>
           </h1>
           <div style={{ color: "var(--ink-3)", fontSize: 15, fontWeight: 600 }}>
             {remainingToday > 0 ? `${remainingToday} chores left today` : "All done — nice."}

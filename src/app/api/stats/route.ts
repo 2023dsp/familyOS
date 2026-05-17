@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek } from "../../../lib/date";
+import { getActiveHouseholdId } from "../../../lib/household";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,8 +13,9 @@ export async function GET() {
   const ws = startOfWeek(now);
   const we = endOfWeek(now);
 
-  const liveChore = { chore: { status: { not: "archived" as const } } };
-  const liveChoreFilter = { status: { not: "archived" as const } };
+  const householdId = await getActiveHouseholdId();
+  const liveChore = { chore: { status: { not: "archived" as const }, householdId } };
+  const liveChoreFilter = { status: { not: "archived" as const }, householdId };
 
   const [todayDone, todayTotal, weekDone, weekTotal, davideDone, luizeDone, streakRaw] = await Promise.all([
     prisma.choreCompletion.count({ where: { completedAt: { gte: ts, lte: te }, ...liveChore } }),
