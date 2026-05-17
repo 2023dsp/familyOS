@@ -3,7 +3,25 @@ import { prisma } from "./prisma";
 import { nextOccurrence } from "./recurrence";
 import { sendToAll } from "./push";
 import { getActiveHouseholdId } from "./household";
+import { RuleSuggestionProvider } from "./suggest";
 import type { Chore, RecurrenceUnit } from "@prisma/client";
+
+const ruleSuggest = new RuleSuggestionProvider();
+
+// Auto-pick icon/category when the client sent the defaults — keeps tiles
+// visually distinct without forcing users to tap suggestion chips.
+function autoEnrich(input: ChoreInput): { icon: string; category: string } {
+  const isDefaultIcon = !input.icon || input.icon === "broom";
+  const isDefaultCategory = !input.category || input.category === "cleaning";
+  if (!isDefaultIcon && !isDefaultCategory) {
+    return { icon: input.icon, category: input.category };
+  }
+  const s = ruleSuggest.suggest(input.title);
+  return {
+    icon: isDefaultIcon && s.icon ? s.icon : input.icon,
+    category: isDefaultCategory && s.category ? s.category : input.category
+  };
+}
 
 function notifyAsync(title: string, body: string, tag: string) {
   // Fire-and-forget — never block a CRUD call on push delivery.
@@ -57,12 +75,13 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
   const ids = await resolveAssigneeIds(slugs);
   const primaryId = ids[0] ?? null;
   const householdId = await getActiveHouseholdId();
+  const enriched = autoEnrich(input);
   const chore = await prisma.chore.create({
     data: {
       title: input.title.trim(),
       notes: input.notes ?? null,
-      icon: input.icon,
-      category: input.category,
+      icon: enriched.icon,
+      category: enriched.category,
       priority: input.priority,
       assigneeId: primaryId,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
