@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/auth";
 import { getActiveHouseholdId } from "../../../lib/household";
+import { isSuperAdminEmail } from "../../../lib/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export async function GET() {
   return NextResponse.json({
     user,
     isKiosk: !session?.uid,
+    isSuperAdmin: isSuperAdminEmail(user?.email),
     household: household
       ? {
           id: household.id,

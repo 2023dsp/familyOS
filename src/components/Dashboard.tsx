@@ -114,6 +114,7 @@ export function Dashboard() {
     user: { name: string | null; email: string } | null;
     household: { id: string; name: string; members: Array<{ id: string; name: string; role: string }> } | null;
     isKiosk: boolean;
+    isSuperAdmin: boolean;
   };
   const [me, setMe] = useState<Me | null>(null);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
@@ -345,7 +346,7 @@ export function Dashboard() {
     <CategoriesProvider value={categories}>
     <FamilyMembersProvider value={familyMembers}>
     <div className={`tod-${hello.tod}`} style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <Header dateLabel={dateLabel} onLogout={logout} householdName={me?.household?.name ?? "Family"} />
+      <Header dateLabel={dateLabel} onLogout={logout} householdName={me?.household?.name ?? "Family"} showAdmin={!!me?.isSuperAdmin} />
       <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
         {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
         <PullToRefresh
@@ -440,7 +441,7 @@ export function Dashboard() {
   );
 }
 
-function Header({ dateLabel, onLogout, householdName }: { dateLabel: string; onLogout: () => void; householdName: string }) {
+function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: string; onLogout: () => void; householdName: string; showAdmin: boolean }) {
   return (
     <header
       style={{
@@ -493,6 +494,23 @@ function Header({ dateLabel, onLogout, householdName }: { dateLabel: string; onL
         >
           <Icon name="star" color="var(--terracotta-deep)" accent="rgba(255,255,255,0.6)" size={14} /> Kids
         </a>
+        {showAdmin && (
+          <a
+            href="/admin"
+            className="btn btn-ghost"
+            aria-label="Super admin"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              textDecoration: "none",
+              background: "var(--ink)",
+              color: "white"
+            }}
+          >
+            <Icon name="settings" color="white" size={14} /> Admin
+          </a>
+        )}
         <button onClick={onLogout} className="btn btn-ghost" aria-label="Log out" type="button">
           <Icon name="user" color="var(--ink-2)" size={14} /> Logout
         </button>
@@ -1193,8 +1211,7 @@ function Settings() {
       case "account":
         return (
           <SettingsCard title="Account" icon="user">
-            <SettingsRow label="Shared family password" desc="Kiosk shortcut · set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
-            <SettingsRow label="Email login" desc="Sign in with your email + bcrypt-hashed password" trailing={<span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>v2</span>} />
+            <SettingsRow label="Email login" desc="Sign in with your email + bcrypt-hashed password" trailing={<span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>Default</span>} />
             <SettingsRow label="Forgot password" desc="Receive a reset link by email at /forgot" trailing={<a href="/forgot" className="pill" style={{ background: "var(--terracotta-soft)", color: "var(--terracotta-deep)", textDecoration: "none" }}>Open</a>} />
           </SettingsCard>
         );

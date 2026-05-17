@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual, createHash, randomBytes } from "crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "familyos_session";
@@ -62,23 +62,6 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
   } catch {
     return null;
   }
-}
-
-export function hashPassword(plain: string): string {
-  return createHash("sha256").update(plain.normalize("NFKC")).digest("hex");
-}
-
-export function checkFamilyPassword(input: string): boolean {
-  if (!input) return false;
-  const expectedHash =
-    process.env.FAMILY_ACCESS_PASSWORD_HASH?.trim() ||
-    (process.env.FAMILY_ACCESS_PASSWORD ? hashPassword(process.env.FAMILY_ACCESS_PASSWORD) : "");
-  if (!expectedHash) return false;
-  const candidate = hashPassword(input);
-  const a = Buffer.from(candidate);
-  const b = Buffer.from(expectedHash);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
 }
 
 export function sessionCookieOptions() {
