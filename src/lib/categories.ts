@@ -20,11 +20,12 @@ export const DEFAULT_CATEGORIES: Array<{
 ];
 
 export async function ensureDefaultCategoriesSeeded() {
+  const householdId = await getActiveHouseholdId();
   for (const c of DEFAULT_CATEGORIES) {
     await prisma.category.upsert({
-      where: { slug: c.slug },
+      where: { householdId_slug: { householdId, slug: c.slug } },
       update: {},
-      create: { ...c, isCustom: false }
+      create: { ...c, isCustom: false, householdId }
     });
   }
 }

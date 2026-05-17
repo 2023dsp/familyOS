@@ -119,7 +119,7 @@ model FamilyMember {
 
 model Category {
   id        String   @id @default(cuid())
-  slug      String   @unique
+  slug      String
   label     String
   icon      String
   color     String
@@ -131,6 +131,8 @@ model Category {
 
   householdId String?
   household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, slug])
 }
 
 model ChoreTemplate {
