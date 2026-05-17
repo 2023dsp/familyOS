@@ -31,7 +31,8 @@ export type ChoreInput = z.infer<typeof choreInputSchema>;
 
 async function resolveAssigneeId(slug?: string | null): Promise<string | null> {
   if (!slug) return null;
-  const m = await prisma.familyMember.findUnique({ where: { slug } });
+  const householdId = await getActiveHouseholdId();
+  const m = await prisma.familyMember.findFirst({ where: { householdId, slug } });
   return m?.id ?? null;
 }
 
@@ -96,7 +97,8 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
   // Use the explicit memberSlug if provided, otherwise fall back to the chore's assignee.
   let memberId: string | null = null;
   if (memberSlug) {
-    memberId = (await prisma.familyMember.findUnique({ where: { slug: memberSlug } }))?.id ?? null;
+    const householdId = await getActiveHouseholdId();
+    memberId = (await prisma.familyMember.findFirst({ where: { householdId, slug: memberSlug } }))?.id ?? null;
   } else if (c.assigneeId) {
     memberId = c.assigneeId;
   }
