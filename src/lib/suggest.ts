@@ -16,24 +16,56 @@ export interface SuggestionProvider {
 }
 
 const KEYWORDS: Array<[RegExp, Partial<Suggestion>]> = [
-  [/\b(lampadin\w*|light\s*bulb|bulb)\b/i, { icon: "bulb", category: "errands" }],
+  // Kids hygiene + routine
+  [/\b(brush\s*teeth|denti|spazzolino|dental)\b/i, { icon: "teeth", category: "kids" }],
+  [/\b(wash\s*hands|lavarsi\s*le\s*mani|lava\s*le\s*mani)\b/i, { icon: "hands", category: "kids" }],
+  [/\b(shower|doccia)\b/i, { icon: "shower", category: "home" }],
+  [/\b(bath|bagnetto|vasca)\b/i, { icon: "bath", category: "kids" }],
+  [/\b(make\s*bed|rifare\s*il\s*letto|bedtime|nanna|sleep)\b/i, { icon: "bed", category: "kids" }],
+  [/\b(get\s*dressed|vestirsi|vestiti)\b/i, { icon: "shirt", category: "kids" }],
+  [/\b(toys?|giocattol\w*|tidy\s*toys)\b/i, { icon: "toys", category: "kids" }],
+  [/\b(school\s*bag|backpack|zaino|cartella)\b/i, { icon: "backpack", category: "kids" }],
+  // Pets
+  [/\b(walk\s*(the\s*)?dog|portar\w*\s*fuori\s*il\s*cane|cammin\w*\s*cane)\b/i, { icon: "paw", category: "home" }],
+  [/\b(feed\s*(the\s*)?(cat|dog|pet)|gatto|cane|pesc\w*|animal\w*)\b/i, { icon: "pet", category: "home" }],
+  // Kitchen
+  [/\b(breakfast|colazione)\b/i, { icon: "breakfast", category: "kitchen" }],
+  [/\b(lunch|dinner|cena|pranzo|cook|cucina\w*|cooking)\b/i, { icon: "fork", category: "kitchen" }],
+  [/\b(set\s*the\s*table|apparecchiar\w*)\b/i, { icon: "table", category: "kitchen" }],
+  [/\b(piatti|dishes|dishwasher|lavastovigli\w*)\b/i, { icon: "dishes", category: "kitchen" }],
+  [/\b(water|drink|acqua|bere|hydrat\w*)\b/i, { icon: "cup", category: "health" }],
+  // Laundry
+  [/\b(lavatrice|laundry|wash\s*clothes)\b/i, { icon: "washing", category: "cleaning" }],
+  [/\b(stir\w*|stenc\w*|piegar\w*|fold|laundry\s*basket)\b/i, { icon: "laundry", category: "cleaning" }],
+  [/\b(iron|stir\w*\b)/i, { icon: "iron", category: "cleaning" }],
+  // House cleaning
+  [/\b(window\w*|finestr\w*|specchi\w*)\b/i, { icon: "window", category: "cleaning" }],
+  [/\b(aspirapolvere|vacuum|hoover)\b/i, { icon: "vacuum", category: "cleaning" }],
+  [/\b(spazza\w*|trash|garbage|rifiuti|recyc\w*)\b/i, { icon: "trash", category: "cleaning" }],
+  [/\b(divano|sofa|couch|living\s*room|salott\w*)\b/i, { icon: "sofa", category: "home" }],
+  [/\b(pulire|clean|cleaning|pul\w*|bagno|bathroom|toilet)\b/i, { icon: "broom", category: "cleaning" }],
+  // Garden
+  [/\b(piante|plant|plants|foglie|leaves|piantin\w*)\b/i, { icon: "plant", category: "garden" }],
+  [/\b(flower\w*|fior\w*)\b/i, { icon: "flower", category: "garden" }],
+  [/\b(giardino|garden|prato|orto)\b/i, { icon: "plant", category: "garden" }],
+  [/\b(annaffia\w*|water\s*(the\s*)?plant|innaffi\w*)\b/i, { icon: "drop", category: "garden" }],
+  // Errands
+  [/\b(spesa|grocery|groceries|shop|shopping)\b/i, { icon: "cart", category: "errands" }],
+  [/\b(pacc\w*|package|deliver\w*|consegn\w*|posta|mail)\b/i, { icon: "package", category: "errands" }],
+  // Vehicle
   [/\b(gomme|pneumati\w*|tires?)\b/i, { icon: "car", category: "vehicle", recurInterval: 6, recurUnit: "month" }],
   [/\b(auto|car|veicolo|vehicle|wash\s*car)\b/i, { icon: "car", category: "vehicle" }],
-  [/\b(giardino|garden|prato)\b/i, { icon: "plant", category: "garden" }],
-  [/\b(piante|plant|plants|foglie|leaves)\b/i, { icon: "plant", category: "garden" }],
-  [/\b(annaffia\w*|water|innaffi\w*)\b/i, { icon: "drop", category: "garden" }],
+  // Bills + appointments
   [/\b(bolletta|fattur\w*|bill|payment|invoice)\b/i, { icon: "card", category: "bills", priority: "high", recurInterval: 1, recurUnit: "month" }],
   [/\b(pagar\w*|pay)\b/i, { icon: "card", category: "bills", priority: "high" }],
-  [/\b(spesa|grocery|groceries|shop)\b/i, { icon: "cart", category: "errands" }],
-  [/\b(divano|sofa|couch)\b/i, { icon: "sofa", category: "home" }],
-  [/\b(piatti|dishes|dishwasher|lavastovigli\w*)\b/i, { icon: "dishes", category: "kitchen" }],
-  [/\b(spazza\w*|trash|garbage|rifiuti|recyc\w*)\b/i, { icon: "trash", category: "cleaning" }],
-  [/\b(aspirapolvere|vacuum|hoover)\b/i, { icon: "broom", category: "cleaning" }],
-  [/\b(pulire|clean|cleaning|pul\w*)\b/i, { icon: "broom", category: "cleaning" }],
-  [/\b(bagno|bathroom|toilet)\b/i, { icon: "broom", category: "cleaning" }],
-  [/\b(lavatrice|lavanderia|laundry|wash)\b/i, { icon: "drop", category: "cleaning" }],
   [/\b(dentista|dentist|doctor|medic\w*|appuntamento|appointment)\b/i, { icon: "book", category: "appointments" }],
   [/\b(prenotar\w*|book\b)/i, { icon: "book", category: "appointments" }],
+  // Health
+  [/\b(pill|medic\w*|vitamin|farmac\w*|pastigli\w*)\b/i, { icon: "pill", category: "health" }],
+  [/\b(bottle|biberon|borraccia)\b/i, { icon: "bottle", category: "kids" }],
+  [/\b(book\b|read|libro|leggere|study|studio)\b/i, { icon: "book", category: "kids" }],
+  // Home maintenance
+  [/\b(lampadin\w*|light\s*bulb|bulb)\b/i, { icon: "bulb", category: "errands" }],
   [/\b(filtro|filter|hvac|caldai\w*)\b/i, { icon: "tools", category: "home", recurInterval: 3, recurUnit: "month" }]
 ];
 

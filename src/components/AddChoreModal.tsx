@@ -11,7 +11,12 @@ import { useAssignableMembers } from "./FamilyMembersContext";
 import type { Suggestion } from "../lib/suggest";
 import type { RecurrenceUnit } from "@prisma/client";
 
-const ICON_PICK = ["broom", "dishes", "trash", "plant", "drop", "bulb", "cart", "car", "sofa", "card", "book", "tools"];
+const ICON_PICK = [
+  "broom", "vacuum", "dishes", "trash", "laundry", "washing", "iron", "shirt",
+  "plant", "flower", "drop", "bulb", "cart", "package", "car", "sofa", "card",
+  "book", "tools", "window", "teeth", "shower", "bath", "hands", "bed",
+  "breakfast", "fork", "cup", "table", "pet", "paw", "toys", "backpack", "pill", "bottle"
+];
 
 function toLocalDateInputValue(d: Date): string {
   const y = d.getFullYear();

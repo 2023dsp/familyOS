@@ -227,6 +227,200 @@ const PATHS: Record<string, Path> = {
       <path d="M12 5.5l1.8 3.7 4 .4-3 2.8.7 4L12 14.4l-3.5 1.9.7-4-3-2.8 4-.4L12 5.5z" fill={a} opacity="0.5"/>
     </g>
   ),
+  teeth: (c, a) => (
+    <g>
+      <path d="M5 6c0-1 1-2 2-2h10c1 0 2 1 2 2 0 4-1 7-3 12-1 2-2 2-3 0l-1-4c-.3-1-1-1-1.3 0l-1 4c-1 2-2 2-3 0-2-5-3-8-3-12z" fill={c} opacity="0.4"/>
+      <path d="M5 6c0-1 1-2 2-2h10c1 0 2 1 2 2 0 4-1 7-3 12-1 2-2 2-3 0l-1-4c-.3-1-1-1-1.3 0l-1 4c-1 2-2 2-3 0-2-5-3-8-3-12z" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M9 8l1.5 1.5" stroke={a} strokeWidth="1.8" strokeLinecap="round"/>
+      <circle cx="16" cy="7.5" r="1" fill={a}/>
+    </g>
+  ),
+  toys: (c, a) => (
+    <g>
+      <circle cx="8" cy="14" r="5" fill={c}/>
+      <rect x="12" y="6" width="8" height="8" rx="1.5" fill={a}/>
+      <circle cx="16" cy="10" r="2" fill={c} opacity="0.6"/>
+      <circle cx="8" cy="14" r="2" fill={a} opacity="0.6"/>
+    </g>
+  ),
+  shirt: (c, a) => (
+    <g>
+      <path d="M4 7l4-3 4 2 4-2 4 3-2 4h-2v9H8v-9H6L4 7z" fill={c} opacity="0.4"/>
+      <path d="M4 7l4-3 4 2 4-2 4 3-2 4h-2v9H8v-9H6L4 7z" stroke={c} strokeWidth="1.5" fill="none" strokeLinejoin="round"/>
+      <path d="M9 5c1 2 5 2 6 0" stroke={a} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+    </g>
+  ),
+  breakfast: (c, a) => (
+    <g>
+      <ellipse cx="12" cy="15" rx="9" ry="3" fill={c}/>
+      <ellipse cx="12" cy="14" rx="9" ry="3" fill={c} opacity="0.5"/>
+      <circle cx="10" cy="14" r="2" fill={a}/>
+      <circle cx="14" cy="14" r="1.5" fill={a}/>
+      <path d="M18 6v6" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+      <path d="M16 4l2 2 2-2" stroke={c} strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+    </g>
+  ),
+  pet: (c, a) => (
+    <g>
+      <ellipse cx="12" cy="14" rx="7" ry="6" fill={c}/>
+      <circle cx="7" cy="10" r="2.2" fill={c}/>
+      <circle cx="17" cy="10" r="2.2" fill={c}/>
+      <circle cx="10" cy="13" r="1" fill={a}/>
+      <circle cx="14" cy="13" r="1" fill={a}/>
+      <path d="M11 16c.5.6 1.5.6 2 0" stroke={a} strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+    </g>
+  ),
+  bath: (c, a) => (
+    <g>
+      <path d="M3 12h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3z" fill={c} opacity="0.4"/>
+      <path d="M3 12h18" stroke={c} strokeWidth="1.8" strokeLinecap="round"/>
+      <circle cx="8" cy="7" r="2" fill={a}/>
+      <path d="M8 9v3" stroke={c} strokeWidth="1.5"/>
+      <circle cx="7" cy="21" r=".7" fill={a}/>
+      <circle cx="12" cy="22" r=".7" fill={a}/>
+      <circle cx="17" cy="21" r=".7" fill={a}/>
+    </g>
+  ),
+  hands: (c, a) => (
+    <g>
+      <path d="M6 11v6a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-6c0-.6-.4-1-1-1s-1 .4-1 1v3" fill={c} opacity="0.4"/>
+      <path d="M9 14V5a1 1 0 1 1 2 0v6M11 14V4a1 1 0 1 1 2 0v7M13 14V5a1 1 0 1 1 2 0v6" stroke={c} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <circle cx="6" cy="8" r=".7" fill={a}/>
+      <circle cx="18" cy="9" r=".7" fill={a}/>
+      <circle cx="3" cy="11" r=".7" fill={a}/>
+    </g>
+  ),
+  table: (c, a) => (
+    <g>
+      <ellipse cx="12" cy="9" rx="9" ry="3" fill={c}/>
+      <path d="M5 9v8M19 9v8" stroke={c} strokeWidth="2" strokeLinecap="round"/>
+      <circle cx="9" cy="9" r="1.2" fill={a}/>
+      <rect x="13" y="6.5" width="3" height="2" rx=".5" fill={a}/>
+    </g>
+  ),
+  bed: (c, a) => (
+    <g>
+      <path d="M3 18V8a1 1 0 0 1 2 0v3h14a2 2 0 0 1 2 2v5h-2v-2H5v2H3z" fill={c} opacity="0.4"/>
+      <path d="M3 18V8M21 18v-5a2 2 0 0 0-2-2H5" stroke={c} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <circle cx="8" cy="9" r="1.5" fill={a}/>
+    </g>
+  ),
+  backpack: (c, a) => (
+    <g>
+      <path d="M8 4h8v3H8z" fill={c}/>
+      <path d="M5 8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8z" fill={c} opacity="0.4"/>
+      <rect x="8" y="11" width="8" height="4" rx="1" fill={a}/>
+      <rect x="10" y="12" width="4" height="1.5" rx=".5" fill={c} opacity="0.7"/>
+    </g>
+  ),
+  washing: (c, a) => (
+    <g>
+      <rect x="4" y="3" width="16" height="18" rx="2" fill={c} opacity="0.4"/>
+      <rect x="4" y="3" width="16" height="18" rx="2" stroke={c} strokeWidth="1.5" fill="none"/>
+      <circle cx="12" cy="13" r="5" fill="none" stroke={c} strokeWidth="1.5"/>
+      <circle cx="12" cy="13" r="2.5" fill={a}/>
+      <circle cx="7" cy="6" r=".8" fill={c}/>
+      <circle cx="10" cy="6" r=".8" fill={c}/>
+    </g>
+  ),
+  iron: (c, a) => (
+    <g>
+      <path d="M3 16c0-3 2-6 6-7l10-1v6c0 1-1 2-2 2H3z" fill={c} opacity="0.4"/>
+      <path d="M3 16c0-3 2-6 6-7l10-1v6c0 1-1 2-2 2H3z" stroke={c} strokeWidth="1.5" fill="none" strokeLinejoin="round"/>
+      <path d="M11 5l-1-2" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="14" cy="13" r=".7" fill={a}/>
+    </g>
+  ),
+  shower: (c, a) => (
+    <g>
+      <circle cx="6" cy="6" r="3" fill={c} opacity="0.4"/>
+      <circle cx="6" cy="6" r="3" stroke={c} strokeWidth="1.3" fill="none"/>
+      <circle cx="6" cy="6" r=".6" fill={a}/>
+      <path d="M9 6h11M19 6V3" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M4 11l-1 3M6 12l-.5 3M8 11l1 3M10 13l.5 3" stroke={a} strokeWidth="1.4" strokeLinecap="round"/>
+    </g>
+  ),
+  vacuum: (c, a) => (
+    <g>
+      <rect x="6" y="10" width="12" height="8" rx="2" fill={c} opacity="0.4"/>
+      <rect x="6" y="10" width="12" height="8" rx="2" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M15 10V5a2 2 0 0 1 2-2h2" stroke={c} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <circle cx="9" cy="19.5" r="1.6" fill={a}/>
+      <circle cx="15" cy="19.5" r="1.6" fill={a}/>
+    </g>
+  ),
+  window: (c, a) => (
+    <g>
+      <rect x="3" y="4" width="18" height="16" rx="1" fill={c} opacity="0.3"/>
+      <rect x="3" y="4" width="18" height="16" rx="1" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M12 4v16M3 12h18" stroke={c} strokeWidth="1.5"/>
+      <path d="M6 7l2 2M16 15l2 2" stroke={a} strokeWidth="1.3" strokeLinecap="round"/>
+    </g>
+  ),
+  fork: (c, a) => (
+    <g>
+      <path d="M7 3v6a3 3 0 0 0 3 3v9M7 3v6M10 3v6M13 3c2 0 2 4 2 6 0 3-2 3-2 3v9" stroke={c} strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+      <circle cx="14" cy="6" r="1" fill={a}/>
+    </g>
+  ),
+  cup: (c, a) => (
+    <g>
+      <path d="M5 8h11v8a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8z" fill={c} opacity="0.4"/>
+      <path d="M5 8h11v8a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8z" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M16 11h2a2 2 0 0 1 0 4h-2" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M8 4c0 1 1 1 1 2s-1 1-1 2M11 4c0 1 1 1 1 2s-1 1-1 2" stroke={a} strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+    </g>
+  ),
+  pill: (c, a) => (
+    <g>
+      <rect x="3" y="9" width="18" height="6" rx="3" fill={c} opacity="0.4"/>
+      <rect x="3" y="9" width="18" height="6" rx="3" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M12 9v6" stroke={c} strokeWidth="1.5"/>
+      <circle cx="7" cy="12" r=".7" fill={a}/>
+    </g>
+  ),
+  paw: (c, a) => (
+    <g>
+      <ellipse cx="12" cy="16" rx="5" ry="4" fill={c}/>
+      <circle cx="6" cy="10" r="2" fill={c}/>
+      <circle cx="9.5" cy="7" r="1.6" fill={c}/>
+      <circle cx="14.5" cy="7" r="1.6" fill={c}/>
+      <circle cx="18" cy="10" r="2" fill={c}/>
+      <circle cx="12" cy="16" r="1.5" fill={a}/>
+    </g>
+  ),
+  flower: (c, a) => (
+    <g>
+      <circle cx="12" cy="12" r="2.5" fill={a}/>
+      <circle cx="12" cy="6" r="2.5" fill={c}/>
+      <circle cx="18" cy="12" r="2.5" fill={c}/>
+      <circle cx="12" cy="18" r="2.5" fill={c}/>
+      <circle cx="6" cy="12" r="2.5" fill={c}/>
+    </g>
+  ),
+  bottle: (c, a) => (
+    <g>
+      <path d="M9 3h6v2c0 1 1 2 1 3v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V8c0-1 1-2 1-3V3z" fill={c} opacity="0.4"/>
+      <path d="M9 3h6v2c0 1 1 2 1 3v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V8c0-1 1-2 1-3V3z" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M9 12h6" stroke={a} strokeWidth="1.3"/>
+    </g>
+  ),
+  package: (c, a) => (
+    <g>
+      <path d="M3 8l9-4 9 4-9 4-9-4z" fill={c}/>
+      <path d="M3 8v8l9 4 9-4V8" stroke={c} strokeWidth="1.5" fill="none" strokeLinejoin="round"/>
+      <path d="M12 12v8" stroke={a} strokeWidth="1.5"/>
+    </g>
+  ),
+  laundry: (c, a) => (
+    <g>
+      <path d="M5 4h14l-1 16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 4z" fill={c} opacity="0.4"/>
+      <path d="M5 4h14l-1 16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 4z" stroke={c} strokeWidth="1.5" fill="none"/>
+      <path d="M5 8h14" stroke={c} strokeWidth="1.3"/>
+      <circle cx="10" cy="14" r="1" fill={a}/>
+      <circle cx="14" cy="16" r="1" fill={a}/>
+    </g>
+  ),
   mic: (c, a) => (
     <g>
       <rect x="9" y="3" width="6" height="12" rx="3" fill={c} opacity="0.4" />

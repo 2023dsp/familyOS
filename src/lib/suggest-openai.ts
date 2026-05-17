@@ -1,19 +1,71 @@
 import { RuleSuggestionProvider, type Suggestion, type SuggestionProvider } from "./suggest";
 
+// Each icon has a short semantic description so the model knows what it represents,
+// not just the slug. Keeping this list in lockstep with src/components/Icon.tsx.
+const ICON_CATALOG: Array<{ name: string; desc: string }> = [
+  { name: "broom", desc: "sweeping floors, dusting, generic cleaning" },
+  { name: "vacuum", desc: "vacuuming carpets, rugs, hoovering" },
+  { name: "dishes", desc: "washing dishes, plates, dishwasher" },
+  { name: "trash", desc: "taking out garbage, recycling, bins" },
+  { name: "laundry", desc: "laundry basket, washing clothes" },
+  { name: "washing", desc: "washing machine, doing wash cycle" },
+  { name: "iron", desc: "ironing clothes" },
+  { name: "shirt", desc: "getting dressed, folding shirts, clothes" },
+  { name: "plant", desc: "watering plants, gardening, houseplants" },
+  { name: "flower", desc: "flowers, bouquet, blooms, deadheading" },
+  { name: "drop", desc: "water, watering, plumbing, leaks" },
+  { name: "bulb", desc: "lightbulbs, electrical, ideas, lamps" },
+  { name: "cart", desc: "grocery shopping, supermarket" },
+  { name: "package", desc: "packages, deliveries, parcels, mail pickup" },
+  { name: "car", desc: "car maintenance, driving, vehicle, gas" },
+  { name: "sofa", desc: "living room, tidying, furniture" },
+  { name: "card", desc: "bills, payments, credit cards, banking" },
+  { name: "book", desc: "reading, study, homework, library" },
+  { name: "tools", desc: "fixing, DIY, repairs, maintenance" },
+  { name: "window", desc: "cleaning windows, mirrors" },
+  { name: "teeth", desc: "brushing teeth, dental hygiene" },
+  { name: "shower", desc: "showering, bathing" },
+  { name: "bath", desc: "bathtub, soaking, bath time for kids" },
+  { name: "hands", desc: "washing hands, hygiene" },
+  { name: "bed", desc: "making bed, bedtime, bedroom" },
+  { name: "breakfast", desc: "breakfast, eggs, morning meal" },
+  { name: "fork", desc: "eating meal, dinner, lunch, cooking" },
+  { name: "cup", desc: "drinking water, coffee, tea, hydration" },
+  { name: "table", desc: "setting the table, dining" },
+  { name: "pet", desc: "pet care, dog, cat, feeding animal" },
+  { name: "paw", desc: "walking dog, pet walks, animals" },
+  { name: "toys", desc: "tidying toys, kids playthings" },
+  { name: "backpack", desc: "school bag, packing for school" },
+  { name: "pill", desc: "medicine, vitamins, prescriptions" },
+  { name: "bottle", desc: "baby bottle, drinks, beverages" }
+];
+
+const ICON_LIST = ICON_CATALOG.map((i) => `${i.name}=${i.desc}`).join("; ");
+
 const SYSTEM = `You normalize free-form chore titles into a structured suggestion for a household to-do app.
 Return ONLY a compact JSON object with these optional fields:
   cleanTitle (string, cleaned-up imperative form),
-  icon (one of: broom,dishes,trash,plant,drop,bulb,cart,car,sofa,card,book,tools),
-  category (one of: cleaning,kitchen,errands,home,garden,vehicle,bills,appointments),
+  icon (pick the SINGLE most semantically appropriate icon by meaning, NOT by name similarity — read the descriptions carefully),
+  category (one of: cleaning,kitchen,errands,home,garden,vehicle,bills,appointments,kids,health),
   priority ("low"|"medium"|"high"),
   recurInterval (positive integer),
   recurUnit ("day"|"week"|"month"),
   dueHint ("today"|"tomorrow"|"this-week"|"weekend").
-Omit any field you cannot infer with high confidence. Input may be Italian or English.
+
+ICON OPTIONS (slug=meaning):
+${ICON_LIST}
+
+Rules for icon selection:
+- Choose the icon whose MEANING best matches the chore, even if its name is different from the chore word.
+- For tasks like "iron clothes" pick "iron", "wash car" pick "car", "shower" pick "shower" (not "drop").
+- For ambiguous cases default to the more specific over the generic.
+- If genuinely unclear, omit the icon field entirely.
+
+Omit any field you cannot infer with high confidence. Input may be Italian or English. Translate Italian chore titles to recognize them.
 No prose. JSON only.`;
 
-const ICONS = new Set(["broom", "dishes", "trash", "plant", "drop", "bulb", "cart", "car", "sofa", "card", "book", "tools"]);
-const CATS = new Set(["cleaning", "kitchen", "errands", "home", "garden", "vehicle", "bills", "appointments"]);
+const ICONS = new Set(ICON_CATALOG.map((i) => i.name));
+const CATS = new Set(["cleaning", "kitchen", "errands", "home", "garden", "vehicle", "bills", "appointments", "kids", "health"]);
 const PRIOS = new Set(["low", "medium", "high"]);
 const UNITS = new Set(["day", "week", "month"]);
 const DUES = new Set(["today", "tomorrow", "this-week", "weekend"]);
