@@ -221,6 +221,12 @@ const PATHS: Record<string, Path> = {
       <path d="M10 12h4" stroke={a} strokeWidth="1.8" strokeLinecap="round" />
     </g>
   ),
+  star: (c, a) => (
+    <g>
+      <path d="M12 3l2.6 5.4L20.5 9l-4.3 4 1 6L12 16.3 6.8 19l1-6L3.5 9l5.9-.6L12 3z" fill={c}/>
+      <path d="M12 5.5l1.8 3.7 4 .4-3 2.8.7 4L12 14.4l-3.5 1.9.7-4-3-2.8 4-.4L12 5.5z" fill={a} opacity="0.5"/>
+    </g>
+  ),
   mic: (c, a) => (
     <g>
       <rect x="9" y="3" width="6" height="12" rx="3" fill={c} opacity="0.4" />

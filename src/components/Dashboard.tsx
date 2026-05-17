@@ -463,6 +463,21 @@ function Header({ dateLabel, onLogout, householdName }: { dateLabel: string; onL
           {dateLabel}
         </span>
         <ThemeToggle compact />
+        <a
+          href="/kids"
+          className="btn btn-ghost"
+          aria-label="Kids Mode"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            textDecoration: "none",
+            background: "var(--terracotta-soft)",
+            color: "var(--terracotta-deep)"
+          }}
+        >
+          <Icon name="star" color="var(--terracotta-deep)" accent="rgba(255,255,255,0.6)" size={14} /> Kids
+        </a>
         <button onClick={onLogout} className="btn btn-ghost" aria-label="Log out" type="button">
           <Icon name="user" color="var(--ink-2)" size={14} /> Logout
         </button>
