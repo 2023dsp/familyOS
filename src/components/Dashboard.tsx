@@ -888,15 +888,12 @@ function TabletHome(p: HomeProps) {
           </div>
         </div>
 
-        <div className="card" style={{ display: "flex", flexDirection: "column", maxHeight: 640, minHeight: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, flexShrink: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>What&apos;s on</h2>
-            <span className="pill"><Icon name="link" color="var(--ink-3)" size={12} /> {p.events.some((e) => e.source === "google") ? "Google" : "Local"}</span>
-          </div>
-          <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
-            <EventList events={p.events.slice(0, 20)} onEventClick={p.onEventClick} />
-          </div>
-        </div>
+        <WhatsOnCard
+          events={p.events}
+          chores={p.chores}
+          onEventClick={p.onEventClick}
+          onChoreOpen={p.onOpen}
+        />
       </div>
     </div>
   );
@@ -1078,6 +1075,177 @@ function EventList({ events, onEventClick }: { events: CalEvent[]; onEventClick?
         );
       })}
     </div>
+  );
+}
+
+type WhatsOnFilter = "events" | "chores" | "both";
+
+function WhatsOnCard({
+  events,
+  chores,
+  onEventClick,
+  onChoreOpen
+}: {
+  events: CalEvent[];
+  chores: ChoreRowData[];
+  onEventClick: (e: CalEvent) => void;
+  onChoreOpen: (c: ChoreRowData) => void;
+}) {
+  const [filter, setFilter] = useState<WhatsOnFilter>("events");
+
+  type Item =
+    | { kind: "event"; key: string; date: Date; allDay: boolean; payload: CalEvent }
+    | { kind: "chore"; key: string; date: Date; allDay: boolean; payload: ChoreRowData };
+
+  const items = useMemo((): Item[] => {
+    const out: Item[] = [];
+    if (filter !== "chores") {
+      for (const e of events) {
+        out.push({ kind: "event", key: `e-${e.id}`, date: new Date(e.startsAt), allDay: e.allDay, payload: e });
+      }
+    }
+    if (filter !== "events") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (const c of chores) {
+        if (!c.dueDate) continue;
+        const d = new Date(c.dueDate);
+        if (d.getTime() < today.getTime() - 86400_000) continue; // skip ancient
+        out.push({ kind: "chore", key: `c-${c.id}`, date: d, allDay: true, payload: c });
+      }
+    }
+    return out.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 30);
+  }, [events, chores, filter]);
+
+  const groups = useMemo(() => {
+    const m = new Map<string, Item[]>();
+    for (const i of items) {
+      const k = i.date.toDateString();
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(i);
+    }
+    return Array.from(m.entries());
+  }, [items]);
+
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", maxHeight: 640, minHeight: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0, gap: 8, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>What&apos;s on</h2>
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-2)", padding: 4, borderRadius: 99 }}>
+          {(["events", "chores", "both"] as WhatsOnFilter[]).map((f) => {
+            const sel = filter === f;
+            const label = f === "events" ? "Events" : f === "chores" ? "Chores" : "Both";
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 99,
+                  background: sel ? "var(--surface)" : "transparent",
+                  color: sel ? "var(--ink)" : "var(--ink-3)",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  boxShadow: sel ? "var(--shadow-sm)" : "none"
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
+        {items.length === 0 ? (
+          <div className="card-flat" style={{ padding: 14, borderRadius: 14, borderLeft: "4px solid var(--blue)" }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>
+              {filter === "chores" ? "No chores scheduled." : filter === "events" ? "No upcoming events." : "Nothing on the calendar."}
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {groups.map(([key, list]) => {
+              const d = new Date(key);
+              const isToday = new Date().toDateString() === key;
+              const label = isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+              return (
+                <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.1, color: "var(--ink-3)" }}>{label}</span>
+                  {list.map((i) =>
+                    i.kind === "event" ? (
+                      <WhatsOnEvent key={i.key} event={i.payload} onClick={() => onEventClick(i.payload)} />
+                    ) : (
+                      <WhatsOnChore key={i.key} chore={i.payload} onClick={() => onChoreOpen(i.payload)} />
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WhatsOnEvent({ event, onClick }: { event: CalEvent; onClick: () => void }) {
+  const s = new Date(event.startsAt);
+  const time = event.allDay ? "All day" : s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        padding: "10px 12px",
+        background: "var(--surface-2)",
+        borderRadius: 14,
+        borderLeft: `4px solid ${event.color ?? "var(--blue)"}`,
+        gap: 12,
+        alignItems: "center",
+        textAlign: "left",
+        cursor: "pointer",
+        width: "100%"
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{event.title}</div>
+        <div className="muted" style={{ fontSize: 12 }}>{time} · {event.calendar ?? event.source}</div>
+      </div>
+    </button>
+  );
+}
+
+function WhatsOnChore({ chore, onClick }: { chore: ChoreRowData; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        padding: "10px 12px",
+        background: "var(--terracotta-soft)",
+        borderRadius: 14,
+        borderLeft: `4px solid var(--terracotta)`,
+        gap: 12,
+        alignItems: "center",
+        textAlign: "left",
+        cursor: "pointer",
+        width: "100%",
+        opacity: chore.done ? 0.6 : 1
+      }}
+    >
+      <Icon name={chore.icon} color="var(--terracotta-deep)" size={18} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: chore.done ? "line-through" : "none" }}>
+          {chore.title}
+        </div>
+        <div className="muted" style={{ fontSize: 12, color: "var(--terracotta-deep)" }}>
+          Chore · {chore.priority}
+        </div>
+      </div>
+    </button>
   );
 }
 

@@ -70,7 +70,7 @@ function fmtTime(d: Date) {
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]; onChanged: () => void; isWide: boolean }) {
-  const [mode, setMode] = useState<Mode>(isWide ? "week" : "list");
+  const [mode, setMode] = useState<Mode>("week");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [addingFor, setAddingFor] = useState<Date | null>(null);
   const [browsingDay, setBrowsingDay] = useState<Date | null>(null);
