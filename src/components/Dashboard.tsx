@@ -446,78 +446,196 @@ export function Dashboard() {
 }
 
 function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: string; onLogout: () => void; householdName: string; showAdmin: boolean }) {
+  const members = useFamilyMembers();
+  const hasKids = useMemo(() => members.some((m) => m.isPerson && m.isChild), [members]);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 720px)");
+    setIsMobile(mq.matches);
+    const fn = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [menuOpen]);
+
   return (
     <header
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "20px 24px 12px",
-        gap: 16
+        padding: isMobile ? "14px 16px 8px" : "20px 24px 12px",
+        gap: 12
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <div
           style={{
-            width: 44,
-            height: 44,
+            width: isMobile ? 38 : 44,
+            height: isMobile ? 38 : 44,
             borderRadius: 12,
             background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
             display: "grid",
             placeItems: "center",
-            boxShadow: "var(--shadow)"
+            boxShadow: "var(--shadow)",
+            flexShrink: 0
           }}
         >
-          <Icon name="home" color="white" accent="rgba(255,255,255,0.6)" size={26} />
+          <Icon name="home" color="white" accent="rgba(255,255,255,0.6)" size={isMobile ? 22 : 26} />
         </div>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: -0.01 }}>FamilyOS</h1>
-          <p style={{ margin: 0, fontSize: 12, color: "var(--ink-3)" }}>
-            {householdName} · Family operations
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 18 : 22, fontWeight: 800, letterSpacing: -0.01, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>FamilyOS</h1>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--ink-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {householdName}
           </p>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
-        <span className="hidden md:inline" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--olive)" }} />
-          {dateLabel}
-        </span>
-        <ThemeToggle compact />
-        <a
-          href="/kids"
-          className="btn btn-ghost"
-          aria-label="Kids Mode"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            textDecoration: "none",
-            background: "var(--terracotta-soft)",
-            color: "var(--terracotta-deep)"
-          }}
-        >
-          <Icon name="star" color="var(--terracotta-deep)" accent="rgba(255,255,255,0.6)" size={14} /> Kids
-        </a>
-        {showAdmin && (
+        {!isMobile && (
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--olive)" }} />
+            {dateLabel}
+          </span>
+        )}
+
+        {hasKids && (
           <a
-            href="/admin"
+            href="/kids"
             className="btn btn-ghost"
-            aria-label="Super admin"
+            aria-label="Kids Mode"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
               textDecoration: "none",
-              background: "var(--ink)",
-              color: "white"
+              background: "var(--terracotta-soft)",
+              color: "var(--terracotta-deep)",
+              padding: isMobile ? "8px 12px" : undefined
             }}
           >
-            <Icon name="settings" color="white" size={14} /> Admin
+            <Icon name="star" color="var(--terracotta-deep)" accent="rgba(255,255,255,0.6)" size={isMobile ? 16 : 14} />
+            {isMobile ? null : "Kids"}
           </a>
         )}
-        <button onClick={onLogout} className="btn btn-ghost" aria-label="Log out" type="button">
-          <Icon name="user" color="var(--ink-2)" size={14} /> Logout
-        </button>
+
+        {isMobile ? (
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              aria-label="More"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((v) => !v);
+              }}
+              className="btn-ghost"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 99,
+                display: "grid",
+                placeItems: "center",
+                background: "rgba(0,0,0,0.04)"
+              }}
+            >
+              <span style={{ display: "inline-flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ width: 4, height: 4, borderRadius: 99, background: "var(--ink-2)" }} />
+                <span style={{ width: 4, height: 4, borderRadius: 99, background: "var(--ink-2)" }} />
+                <span style={{ width: 4, height: 4, borderRadius: 99, background: "var(--ink-2)" }} />
+              </span>
+            </button>
+            {menuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  right: 0,
+                  marginTop: 6,
+                  zIndex: 30,
+                  minWidth: 180,
+                  background: "var(--surface)",
+                  border: "1px solid var(--line)",
+                  borderRadius: 14,
+                  boxShadow: "var(--shadow-lg)",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column"
+                }}
+              >
+                <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--line)" }}>
+                  <ThemeToggle compact />
+                </div>
+                {showAdmin && (
+                  <a
+                    href="/admin"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "12px 14px",
+                      textDecoration: "none",
+                      color: "var(--ink)",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      borderBottom: "1px solid var(--line)"
+                    }}
+                  >
+                    <Icon name="settings" color="var(--ink-2)" size={16} /> Admin
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 14px",
+                    background: "transparent",
+                    color: "var(--ink)",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left"
+                  }}
+                >
+                  <Icon name="user" color="var(--ink-2)" size={16} /> Logout
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <ThemeToggle compact />
+            {showAdmin && (
+              <a
+                href="/admin"
+                className="btn btn-ghost"
+                aria-label="Super admin"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  textDecoration: "none",
+                  background: "var(--ink)",
+                  color: "white"
+                }}
+              >
+                <Icon name="settings" color="white" size={14} /> Admin
+              </a>
+            )}
+            <button onClick={onLogout} className="btn btn-ghost" aria-label="Log out" type="button">
+              <Icon name="user" color="var(--ink-2)" size={14} /> Logout
+            </button>
+          </>
+        )}
       </div>
     </header>
   );
