@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
-  const token = createSessionToken();
+  const primaryHouseholdId = user.memberships[0]?.householdId;
+  const token = createSessionToken({ userId: user.id, householdId: primaryHouseholdId });
   const res = NextResponse.json({
     ok: true,
     user: { id: user.id, email: user.email, name: user.name },

@@ -55,11 +55,17 @@ export async function getOrCreateDefaultHousehold(): Promise<string> {
 }
 
 /**
- * Lightweight resolver used by API routes today. Reads the cookie session and
- * returns the active household id. v2-aware once the session payload starts
- * carrying householdId — for now everyone shares the default household.
+ * Lightweight resolver used by API routes. Reads the cookie session: if it
+ * carries a v2 householdId (email+password login), use that. Otherwise fall
+ * back to the legacy shared-password default household.
  */
 export async function getActiveHouseholdId(): Promise<string> {
+  const { getSession } = await import("./auth");
+  const session = await getSession();
+  if (session?.hid) {
+    const exists = await prisma.household.findUnique({ where: { id: session.hid } });
+    if (exists) return exists.id;
+  }
   return getOrCreateDefaultHousehold();
 }
 

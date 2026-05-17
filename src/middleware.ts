@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_EDGE, verifySessionTokenEdge } from "./lib/auth-edge";
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|login|api/auth/login|api/cron).*)"]
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|login|register|api/auth/login|api/auth/v2|api/cron).*)"
+  ]
 };
 
 export async function middleware(req: NextRequest) {

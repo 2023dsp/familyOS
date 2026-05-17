@@ -27,16 +27,20 @@ export type SessionPayload = {
   iat: number;
   exp: number;
   nonce: string;
+  uid?: string; // userId for v2 sessions (email+password)
+  hid?: string; // active householdId for v2 sessions
 };
 
-export function createSessionToken(): string {
+export function createSessionToken(extra?: { userId?: string; householdId?: string }): string {
   const days = Number(process.env.SESSION_DAYS ?? 30);
   const now = Math.floor(Date.now() / 1000);
   const payload: SessionPayload = {
     v: 1,
     iat: now,
     exp: now + days * 24 * 60 * 60,
-    nonce: randomBytes(8).toString("hex")
+    nonce: randomBytes(8).toString("hex"),
+    ...(extra?.userId ? { uid: extra.userId } : {}),
+    ...(extra?.householdId ? { hid: extra.householdId } : {})
   };
   const body = b64urlEncode(JSON.stringify(payload));
   const sig = sign(body);

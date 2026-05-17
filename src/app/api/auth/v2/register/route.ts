@@ -47,8 +47,7 @@ export async function POST(req: NextRequest) {
     return { user, household };
   });
 
-  // Reuse the existing HMAC session token while multi-tenant migration is staged.
-  const token = createSessionToken();
+  const token = createSessionToken({ userId: result.user.id, householdId: result.household.id });
   const res = NextResponse.json({
     ok: true,
     user: { id: result.user.id, email: result.user.email, name: result.user.name },
