@@ -1078,35 +1078,176 @@ function Templates({ templates, isWide, onPick }: { templates: Template[]; isWid
   );
 }
 
+type SettingsSectionKey =
+  | "family"
+  | "categories"
+  | "notifications"
+  | "weather"
+  | "calendar"
+  | "account"
+  | "integrations";
+
+const SETTINGS_SECTIONS: Array<{ key: SettingsSectionKey; label: string; icon: string; desc: string }> = [
+  { key: "family", label: "Household", icon: "users", desc: "Members, kids, roles" },
+  { key: "categories", label: "Categories", icon: "layers", desc: "Tags + colors" },
+  { key: "notifications", label: "Notifications", icon: "clock", desc: "Push + daily digest" },
+  { key: "weather", label: "Weather", icon: "sun", desc: "Location + forecast" },
+  { key: "calendar", label: "Google Calendar", icon: "calendar", desc: "Sync events" },
+  { key: "account", label: "Account", icon: "user", desc: "Password + session" },
+  { key: "integrations", label: "Integrations", icon: "link", desc: "AI + other connectors" }
+];
+
 function Settings() {
-  const categories = useCategories();
+  const [section, setSection] = useState<SettingsSectionKey>("family");
+  const [isWide, setIsWide] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 900px)");
+    setIsWide(mq.matches);
+    const fn = (e: MediaQueryListEvent) => setIsWide(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+
+  const renderSection = (k: SettingsSectionKey) => {
+    switch (k) {
+      case "family":
+        return <FamilyMembersCard />;
+      case "categories":
+        return <CategoriesEditor />;
+      case "notifications":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <PushSubscribeCard />
+            <NotificationScheduleCard />
+          </div>
+        );
+      case "weather":
+        return <WeatherSettingsCard />;
+      case "calendar":
+        return <GoogleCalendarCard />;
+      case "account":
+        return (
+          <SettingsCard title="Account" icon="user">
+            <SettingsRow label="Shared family password" desc="Kiosk shortcut · set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
+            <SettingsRow label="Email login" desc="Sign in with your email + bcrypt-hashed password" trailing={<span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>v2</span>} />
+            <SettingsRow label="Forgot password" desc="Email reset flow — coming soon" trailing={<span className="pill">Planned</span>} />
+          </SettingsCard>
+        );
+      case "integrations":
+        return (
+          <SettingsCard title="Integrations" icon="link">
+            <SettingsRow label="OpenAI suggestions" desc="Smart icon / category / recurrence guesses on chore titles. Falls back to local rules if OPENAI_API_KEY is unset." trailing={<span className="pill">Optional</span>} />
+            <SettingsRow label="Web Push (VAPID)" desc="Configured server-side. See Notifications for per-device controls." trailing={<span className="pill">Configured</span>} />
+          </SettingsCard>
+        );
+    }
+  };
+
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div>
         <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Settings</span>
         <h1 style={{ margin: "4px 0", fontSize: 28, fontWeight: 800 }}>Family preferences</h1>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
-        <FamilyMembersCard />
 
-        <CategoriesEditor />
+      {isWide ? (
+        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20, alignItems: "start" }}>
+          <nav
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 18,
+              padding: 8,
+              boxShadow: "var(--shadow-sm)",
+              position: "sticky",
+              top: 16
+            }}
+          >
+            {SETTINGS_SECTIONS.map((s) => {
+              const sel = section === s.key;
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setSection(s.key)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    background: sel ? "var(--surface-2)" : "transparent",
+                    color: sel ? "var(--terracotta)" : "var(--ink)",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    textAlign: "left",
+                    cursor: "pointer",
+                    border: "none"
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      background: sel ? "var(--terracotta-soft)" : "rgba(0,0,0,0.04)",
+                      display: "grid",
+                      placeItems: "center",
+                      flexShrink: 0
+                    }}
+                  >
+                    <Icon name={s.icon} color={sel ? "var(--terracotta-deep)" : "var(--ink-2)"} size={16} />
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                    <span>{s.label}</span>
+                    <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>{s.desc}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
 
-        <SettingsCard title="Family password" icon="user">
-          <SettingsRow label="Shared password" desc="Set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
-        </SettingsCard>
-
-        <PushSubscribeCard />
-
-        <NotificationScheduleCard />
-
-        <WeatherSettingsCard />
-
-        <GoogleCalendarCard />
-
-        <SettingsCard title="Other connections" icon="link">
-          <SettingsRow label="OpenAI suggestions" desc="Optional, falls back to local rules" trailing={<span className="pill">Optional</span>} />
-        </SettingsCard>
-      </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+            {renderSection(section)}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 8, overflowX: "auto" }} className="no-scrollbar">
+            {SETTINGS_SECTIONS.map((s) => {
+              const sel = section === s.key;
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setSection(s.key)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 14px",
+                    borderRadius: 99,
+                    background: sel ? "var(--ink)" : "rgba(0,0,0,0.04)",
+                    color: sel ? "var(--surface)" : "var(--ink-2)",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    whiteSpace: "nowrap",
+                    border: "none"
+                  }}
+                >
+                  <Icon name={s.icon} color={sel ? "var(--surface)" : "var(--ink-3)"} size={14} />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{renderSection(section)}</div>
+        </div>
+      )}
     </div>
   );
 }
