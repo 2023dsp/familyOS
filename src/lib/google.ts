@@ -219,6 +219,14 @@ export async function syncGoogleCalendar(
           await prisma.calendarEvent.deleteMany({ where: { externalId: ev.id, householdId } });
           continue;
         }
+        // Skip our own chore-events — we already display them as chores via the
+        // Chore.googleEventId link. Mirroring them as CalendarEvent rows duplicates
+        // them in the "What's on" widget.
+        const isOurChore = ev.extendedProperties?.private?.familyosChoreId != null;
+        if (isOurChore) {
+          await prisma.calendarEvent.deleteMany({ where: { externalId: ev.id, householdId } });
+          continue;
+        }
         const startsAt = ev.start?.dateTime ? new Date(ev.start.dateTime) : ev.start?.date ? new Date(ev.start.date) : null;
         const endsAt = ev.end?.dateTime ? new Date(ev.end.dateTime) : ev.end?.date ? new Date(ev.end.date) : null;
         if (!startsAt) continue;
