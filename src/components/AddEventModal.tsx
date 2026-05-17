@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
+import { useMembersForPersona } from "./FamilyMembersContext";
 
 const PERSONAS = [
   { id: "davide", label: "Davide", color: "#6F8AA8", soft: "#D6E0EB" },
@@ -63,6 +64,12 @@ export function AddEventModal({
   initialDate?: Date;
   existing?: ExistingEvent;
 }) {
+  const householdMembers = useMembersForPersona();
+  const personaOptions: Array<{ id: string; label: string; color: string; soft: string }> = [
+    ...householdMembers.map((m) => ({ id: m.slug, label: m.name, color: m.color, soft: softenHex(m.color) })),
+    FAMILY_OPT,
+    OTHER_OPT
+  ];
   const isEdit = !!existing;
   const seed = existing ? new Date(existing.startsAt) : initialDate ?? new Date();
   const endSeed = existing && existing.endsAt ? new Date(existing.endsAt) : new Date(seed.getTime() + 60 * 60 * 1000);
@@ -82,8 +89,8 @@ export function AddEventModal({
   const [editing, setEditing] = useState(!isEdit);
 
   useEffect(() => {
-    if (autoPersona && title) setPersona(detectPersona(title));
-  }, [title, autoPersona]);
+    if (autoPersona && title) setPersona(detectPersona(title, householdMembers));
+  }, [title, autoPersona, householdMembers]);
 
   async function save() {
     if (!title.trim()) return;
@@ -134,7 +141,7 @@ export function AddEventModal({
     }
   }
 
-  const personaMeta = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[3];
+  const personaMeta = personaOptions.find((p) => p.id === persona) ?? OTHER_OPT;
   const dueLabelDate = (() => {
     const [y, m, d] = date.split("-").map((n) => parseInt(n, 10));
     if (!y || !m || !d) return "";
@@ -217,7 +224,7 @@ export function AddEventModal({
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <span style={{ color: "var(--ink-3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Who</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {PERSONAS.map((p) => {
+            {personaOptions.map((p) => {
               const sel = persona === p.id;
               return (
                 <button

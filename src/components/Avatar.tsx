@@ -1,11 +1,58 @@
-import { ASSIGNEES, type AssigneeSlug } from "../lib/catalog";
+"use client";
 
-export function Avatar({ who = "unassigned", size = 32 }: { who?: AssigneeSlug | string | null; size?: number }) {
-  const key = (who as AssigneeSlug) in ASSIGNEES ? (who as AssigneeSlug) : "unassigned";
-  const a = ASSIGNEES[key];
+import { useMemberBySlug } from "./FamilyMembersContext";
+
+export function Avatar({
+  who,
+  size = 32,
+  fallbackColor
+}: {
+  who?: string | null;
+  size?: number;
+  fallbackColor?: string;
+}) {
+  const member = useMemberBySlug(who ?? undefined);
+
+  if (!member) {
+    // Unknown / unassigned slug: dashed circle with "?".
+    const isUnassigned = !who || who === "unassigned";
+    return (
+      <span
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 999,
+          background: isUnassigned ? "transparent" : fallbackColor ?? "var(--ink-3)",
+          color: isUnassigned ? "var(--ink-3)" : "white",
+          border: isUnassigned ? "1.5px dashed var(--line-2)" : "none",
+          display: "grid",
+          placeItems: "center",
+          fontWeight: 800,
+          fontSize: size * 0.36,
+          flexShrink: 0
+        }}
+      >
+        {isUnassigned ? "?" : who?.charAt(0).toUpperCase() ?? "?"}
+      </span>
+    );
+  }
+
   return (
-    <span className={`avatar avatar-${key}`} style={{ width: size, height: size, fontSize: size * 0.36 }}>
-      {a.initials}
+    <span
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        background: member.color,
+        color: "white",
+        display: "grid",
+        placeItems: "center",
+        fontWeight: 800,
+        fontSize: size * 0.36,
+        flexShrink: 0
+      }}
+    >
+      {member.initials}
     </span>
   );
 }

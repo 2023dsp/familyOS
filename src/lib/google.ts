@@ -1,7 +1,8 @@
 import { google, calendar_v3 } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
 import { prisma } from "./prisma";
-import { detectPersona, PERSONA_META } from "./events";
+import { detectPersona, FAMILY_FALLBACK_COLOR, OTHER_FALLBACK_COLOR } from "./events";
+import { getActiveHouseholdId } from "./household";
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
 
@@ -214,8 +215,14 @@ export async function syncGoogleCalendar(): Promise<{ pulled: number; pushed: nu
         const endsAt = ev.end?.dateTime ? new Date(ev.end.dateTime) : ev.end?.date ? new Date(ev.end.date) : null;
         if (!startsAt) continue;
         const title = ev.summary ?? "(no title)";
-        const persona = detectPersona(title);
-        const color = PERSONA_META[persona].color;
+        const householdId = await getActiveHouseholdId();
+        const householdMembers = await prisma.familyMember.findMany({
+          where: { householdId, isPerson: true },
+          select: { slug: true, name: true, color: true }
+        });
+        const persona = detectPersona(title, householdMembers);
+        const matched = householdMembers.find((m) => m.slug === persona);
+        const color = matched?.color ?? (persona === "family" ? FAMILY_FALLBACK_COLOR : OTHER_FALLBACK_COLOR);
         await prisma.calendarEvent.upsert({
           where: { externalId: ev.id },
           create: {

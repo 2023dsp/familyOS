@@ -4,22 +4,26 @@ import { useMemo, useState } from "react";
 import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import type { CalEvent } from "./CalendarView";
+import { useMembersForPersona } from "./FamilyMembersContext";
 
-const PERSONA_COLORS: Record<string, string> = {
-  davide: "#6F8AA8",
-  luize: "#D89AA0",
-  family: "#C97B5B",
-  other: "#5C4F3F"
-};
+const FAMILY_COLOR = "#C97B5B";
+const OTHER_COLOR = "#5C4F3F";
 
-function colorFor(e: CalEvent): string {
+function colorForEvent(e: CalEvent, members: Array<{ slug: string; name: string; color: string }>): string {
   if (e.color) return e.color;
-  if (e.persona && PERSONA_COLORS[e.persona]) return PERSONA_COLORS[e.persona]!;
+  if (e.persona) {
+    const m = members.find((x) => x.slug === e.persona);
+    if (m) return m.color;
+    if (e.persona === "family") return FAMILY_COLOR;
+    if (e.persona === "other") return OTHER_COLOR;
+  }
   const t = e.title.toLowerCase();
-  if (/\bdavide\b/.test(t)) return PERSONA_COLORS.davide!;
-  if (/\bluize\b/.test(t)) return PERSONA_COLORS.luize!;
-  if (/\bfamiglia\b|\bfamily\b|\bcasa\b/.test(t)) return PERSONA_COLORS.family!;
-  return "#5C4F3F";
+  for (const m of members) {
+    const needle = m.name.toLowerCase();
+    if (needle && new RegExp(`\\b${needle.replace(/[^a-z0-9]/g, ".")}\\b`).test(t)) return m.color;
+  }
+  if (/\bfamiglia\b|\bfamily\b|\bcasa\b/.test(t)) return FAMILY_COLOR;
+  return OTHER_COLOR;
 }
 
 function softFor(hex: string): string {
@@ -50,6 +54,7 @@ export function DayEventsModal({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const personaMembers = useMembersForPersona();
   const list = useMemo(() => {
     const key = date.toDateString();
     return events
@@ -107,7 +112,7 @@ export function DayEventsModal({
           </div>
         ) : (
           list.map((e) => {
-            const c = colorFor(e);
+            const c = colorForEvent(e, personaMembers);
             const start = new Date(e.startsAt);
             const end = e.endsAt ? new Date(e.endsAt) : null;
             const timeLabel = e.allDay ? "All day" : `${fmtTime(start)}${end ? ` – ${fmtTime(end)}` : ""}`;

@@ -22,6 +22,16 @@ import { PullToRefresh } from "./PullToRefresh";
 import { WeatherCard } from "./WeatherCard";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
 import { CategoriesProvider, useCategories } from "./CategoriesContext";
+import { FamilyMembersProvider, type Member } from "./FamilyMembersContext";
+
+function deriveMySlug(me: { user: { name: string | null; email: string } | null } | null, members: Member[]): string | null {
+  if (!me?.user) return null;
+  const base = (me.user.name ?? me.user.email.split("@")[0] ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const byName = members.find((m) => m.slug === base);
+  if (byName) return byName.slug;
+  const first = members.find((m) => m.isPerson);
+  return first?.slug ?? null;
+}
 import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
@@ -73,7 +83,7 @@ function toRowData(c: ApiChore): ChoreRowData {
     icon: c.icon,
     category: c.category,
     priority: c.priority,
-    assigneeSlug: ["davide", "luize", "both", "unassigned"].includes(slug) ? slug : "unassigned",
+    assigneeSlug: slug || "unassigned",
     dueDate: c.dueDate,
     isRecurring: c.isRecurring,
     recurInterval: c.recurInterval,
@@ -98,6 +108,7 @@ export function Dashboard() {
     isKiosk: boolean;
   };
   const [me, setMe] = useState<Me | null>(null);
+  const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
@@ -187,15 +198,17 @@ export function Dashboard() {
   }, [opened, adding]);
 
   const load = useCallback(async () => {
-    const [cRes, tRes, sRes, eRes, catRes, meRes] = await Promise.all([
+    const [cRes, tRes, sRes, eRes, catRes, meRes, memRes] = await Promise.all([
       fetch("/api/chores?status=all", { cache: "no-store" }),
       fetch("/api/templates", { cache: "no-store" }),
       fetch("/api/stats", { cache: "no-store" }),
       fetch("/api/calendar/events", { cache: "no-store" }),
       fetch("/api/categories", { cache: "no-store" }),
-      fetch("/api/me", { cache: "no-store" })
+      fetch("/api/me", { cache: "no-store" }),
+      fetch("/api/family-members", { cache: "no-store" })
     ]);
     if (meRes.ok) setMe(await meRes.json());
+    if (memRes.ok) setFamilyMembers((await memRes.json()).members);
     if (cRes.ok) setChores((await cRes.json()).chores);
     if (tRes.ok) setTemplates((await tRes.json()).templates);
     if (sRes.ok) setStats(await sRes.json());
@@ -243,11 +256,16 @@ export function Dashboard() {
     [chores]
   );
 
+  const mySlug = useMemo(() => deriveMySlug(me, familyMembers), [me, familyMembers]);
+
   const filtered = useMemo(() => {
     const base = chores.filter((c) => c.status !== "archived");
     if (filter === "today") return base.filter((c) => c.dueDate && isSameDay(new Date(c.dueDate), today));
     if (filter === "upcoming") return base.filter((c) => c.dueDate && new Date(c.dueDate) > startOfDay(today));
-    if (filter === "mine") return base.filter((c) => ["luize", "both"].includes(c.assignee?.slug ?? ""));
+    if (filter === "mine") {
+      const mySlugs = mySlug ? [mySlug, "both"] : [];
+      return base.filter((c) => mySlugs.includes(c.assignee?.slug ?? ""));
+    }
     return base;
   }, [chores, filter]);
 
@@ -302,6 +320,7 @@ export function Dashboard() {
 
   return (
     <CategoriesProvider value={categories}>
+    <FamilyMembersProvider value={familyMembers}>
     <div className={`tod-${hello.tod}`} style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <Header dateLabel={dateLabel} onLogout={logout} householdName={me?.household?.name ?? "Family"} />
       <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
@@ -393,6 +412,7 @@ export function Dashboard() {
         />
       )}
     </div>
+    </FamilyMembersProvider>
     </CategoriesProvider>
   );
 }

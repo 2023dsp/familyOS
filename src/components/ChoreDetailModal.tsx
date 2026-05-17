@@ -5,8 +5,9 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { PriorityDots } from "./ChoreRow";
-import { ASSIGNEES, PRIORITIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { PRIORITIES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
 import { useCategories } from "./CategoriesContext";
+import { useAssignableMembers } from "./FamilyMembersContext";
 // categories used in detail modal for editable category section
 import { formatRecurrence } from "../lib/recurrence";
 import type { ChoreRowData } from "./ChoreRow";
@@ -80,6 +81,7 @@ export function ChoreDetailModal({
   onChanged: () => void;
 }) {
   const categories = useCategories();
+  const members = useAssignableMembers();
   const [chore, setChore] = useState<LocalChore>(initialChore);
   const cat = categories.find((c) => c.id === chore.category);
   const [busy, setBusy] = useState(false);
@@ -117,10 +119,8 @@ export function ChoreDetailModal({
         recurDaysOfWeek: c.recurDaysOfWeek ?? null,
         reminderAt: c.reminderAt ?? null,
         assigneeSlug: ((): AssigneeSlug => {
-          const slug = c.assignee?.slug ?? data.assigneeSlug;
-          return (["davide", "luize", "both", "unassigned"] as AssigneeSlug[]).includes(slug as AssigneeSlug)
-            ? (slug as AssigneeSlug)
-            : "unassigned";
+          const slug = c.assignee?.slug ?? (typeof data.assigneeSlug === "string" ? data.assigneeSlug : null);
+          return slug ?? "unassigned";
         })()
       }));
       onChanged();
@@ -238,13 +238,13 @@ export function ChoreDetailModal({
       <div className="scroll" style={{ padding: "0 24px", flex: 1, minHeight: 0, overflowY: "auto" }}>
         <Section label="Assigned to">
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {(["davide", "luize", "both", "unassigned"] as AssigneeSlug[]).map((a) => {
-              const sel = chore.assigneeSlug === a;
+            {members.map((m) => {
+              const sel = chore.assigneeSlug === m.slug;
               return (
                 <button
-                  key={a}
+                  key={m.id}
                   type="button"
-                  onClick={() => patch({ assigneeSlug: a })}
+                  onClick={() => patch({ assigneeSlug: m.slug })}
                   disabled={busy}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
@@ -254,11 +254,14 @@ export function ChoreDetailModal({
                     fontWeight: 700, fontSize: 12
                   }}
                 >
-                  <Avatar who={a} size={20} />
-                  {ASSIGNEES[a].name}
+                  <Avatar who={m.slug} size={20} />
+                  {m.name}
                 </button>
               );
             })}
+            {members.length === 0 && (
+              <span className="muted" style={{ fontSize: 12 }}>No members yet</span>
+            )}
           </div>
         </Section>
 

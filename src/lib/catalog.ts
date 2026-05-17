@@ -1,11 +1,6 @@
-export type AssigneeSlug = "davide" | "luize" | "both" | "unassigned";
-
-export const ASSIGNEES: Record<AssigneeSlug, { id: AssigneeSlug; name: string; initials: string }> = {
-  davide: { id: "davide", name: "Davide", initials: "D" },
-  luize: { id: "luize", name: "Luize", initials: "L" },
-  both: { id: "both", name: "Both", initials: "D+L" },
-  unassigned: { id: "unassigned", name: "Anyone", initials: "?" }
-};
+// Legacy: kept as a `string` alias for back-compat. Real list of members
+// is now loaded dynamically per household via FamilyMembersContext.
+export type AssigneeSlug = string;
 
 export type Category = {
   id: string;

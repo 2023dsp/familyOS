@@ -5,6 +5,7 @@ import { Icon } from "./Icon";
 import { Segmented } from "./Segmented";
 import { AddEventModal, type ExistingEvent } from "./AddEventModal";
 import { DayEventsModal } from "./DayEventsModal";
+import { useMembersForPersona } from "./FamilyMembersContext";
 
 export type CalEvent = {
   id: string;
@@ -20,21 +21,23 @@ export type CalEvent = {
 
 type Mode = "week" | "month" | "list";
 
-const PERSONA_FALLBACK: Record<string, string> = {
-  davide: "#6F8AA8",
-  luize: "#D89AA0",
-  family: "#C97B5B",
-  other: "#5C4F3F"
-};
+const FAMILY_COLOR = "#C97B5B";
+const OTHER_COLOR = "#5C4F3F";
 
-function colorFor(e: CalEvent): string {
+function eventColorWith(members: Array<{ slug: string; name: string; color: string }>, e: CalEvent): string {
   if (e.color) return e.color;
-  if (e.persona && PERSONA_FALLBACK[e.persona]) return PERSONA_FALLBACK[e.persona]!;
-  // detect from title as last resort (Google-sourced events)
+  if (e.persona) {
+    const m = members.find((x) => x.slug === e.persona);
+    if (m) return m.color;
+    if (e.persona === "family") return FAMILY_COLOR;
+    if (e.persona === "other") return OTHER_COLOR;
+  }
   const t = e.title.toLowerCase();
-  if (/\bdavide\b/.test(t)) return PERSONA_FALLBACK.davide!;
-  if (/\bluize\b/.test(t)) return PERSONA_FALLBACK.luize!;
-  if (/\bfamiglia\b|\bfamily\b|\bcasa\b/.test(t)) return PERSONA_FALLBACK.family!;
+  for (const m of members) {
+    const needle = m.name.toLowerCase();
+    if (needle && new RegExp(`\\b${needle.replace(/[^a-z0-9]/g, ".")}\\b`).test(t)) return m.color;
+  }
+  if (/\bfamiglia\b|\bfamily\b|\bcasa\b/.test(t)) return FAMILY_COLOR;
   return "var(--blue)";
 }
 
@@ -195,11 +198,17 @@ export function CalendarView({ events, onChanged, isWide }: { events: CalEvent[]
 }
 
 function Legend() {
+  const members = useMembersForPersona();
+  const items: Array<{ label: string; color: string }> = [
+    ...members.map((m) => ({ label: m.name, color: m.color })),
+    { label: "Family", color: FAMILY_COLOR },
+    { label: "Other", color: OTHER_COLOR }
+  ];
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 12, paddingTop: 4 }}>
-      {Object.entries(PERSONA_FALLBACK).map(([k, c]) => (
-        <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
-          <span style={{ width: 10, height: 10, borderRadius: 99, background: c }} /> {k.charAt(0).toUpperCase() + k.slice(1)}
+      {items.map((it, i) => (
+        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
+          <span style={{ width: 10, height: 10, borderRadius: 99, background: it.color }} /> {it.label}
         </span>
       ))}
     </div>
@@ -361,11 +370,14 @@ function MonthGrid({
   onDayClick,
   isWide
 }: {
+  // members used via hook below for color resolution
   anchor: Date;
   events: CalEvent[];
   onDayClick: (d: Date) => void;
   isWide: boolean;
 }) {
+  const members = useMembersForPersona();
+  const colorFor = (e: CalEvent) => eventColorWith(members, e);
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const start = startOfWeek(first);
   const cells = Array.from({ length: 42 }, (_, i) => addDays(start, i));
@@ -540,7 +552,8 @@ function AgendaList({ events, onEventClick }: { events: CalEvent[]; onEventClick
 }
 
 function EventPill({ event, compact = false, showTime = false }: { event: CalEvent; compact?: boolean; showTime?: boolean }) {
-  const c = colorFor(event);
+  const members = useMembersForPersona();
+  const c = eventColorWith(members, event);
   const start = new Date(event.startsAt);
   const end = event.endsAt ? new Date(event.endsAt) : null;
   const timeLabel = event.allDay ? "All day" : `${fmtTime(start)}${end ? `–${fmtTime(end)}` : ""}`;

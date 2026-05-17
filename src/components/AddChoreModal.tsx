@@ -5,8 +5,9 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { Segmented } from "./Segmented";
-import { ASSIGNEES, type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { type AssigneeSlug, type PriorityKey } from "../lib/catalog";
 import { useCategories } from "./CategoriesContext";
+import { useAssignableMembers } from "./FamilyMembersContext";
 import type { Suggestion } from "../lib/suggest";
 import type { RecurrenceUnit } from "@prisma/client";
 
@@ -67,10 +68,11 @@ export function AddChoreModal({
   prefill?: AddChorePrefill;
 }) {
   const categories = useCategories();
+  const members = useAssignableMembers();
   const [text, setText] = useState(prefill?.title ?? "");
   const [icon, setIcon] = useState(prefill?.icon ?? "broom");
   const [category, setCategory] = useState(prefill?.category ?? "cleaning");
-  const [assignee, setAssignee] = useState<AssigneeSlug>("both");
+  const [assignee, setAssignee] = useState<AssigneeSlug>("unassigned");
   const [priority, setPriority] = useState<PriorityKey>(prefill?.priority ?? "medium");
   const [due, setDue] = useState<string>(quickDate("today"));
   const [recurInterval, setRecurInterval] = useState<number | null>(prefill?.recurInterval ?? null);
@@ -362,12 +364,12 @@ export function AddChoreModal({
         {/* Assignee + Priority */}
         <Section label="Assignee">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {(["davide", "luize", "both", "unassigned"] as const).map((a) => {
-              const sel = assignee === a;
+            {members.map((m) => {
+              const sel = assignee === m.slug;
               return (
                 <button
-                  key={a}
-                  onClick={() => setAssignee(a)}
+                  key={m.id}
+                  onClick={() => setAssignee(m.slug)}
                   type="button"
                   style={{
                     display: "inline-flex",
@@ -381,11 +383,14 @@ export function AddChoreModal({
                     fontSize: 13
                   }}
                 >
-                  <Avatar who={a} size={26} />
-                  {ASSIGNEES[a].name}
+                  <Avatar who={m.slug} size={26} />
+                  {m.name}
                 </button>
               );
             })}
+            {members.length === 0 && (
+              <span className="muted" style={{ fontSize: 12 }}>No members yet. Add some in Settings → Household.</span>
+            )}
           </div>
         </Section>
 

@@ -16,7 +16,7 @@ export const choreInputSchema = z.object({
   icon: z.string().min(1).max(40).default("broom"),
   category: z.string().min(1).max(40).default("cleaning"),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
-  assigneeSlug: z.enum(["davide", "luize", "both", "unassigned"]).default("unassigned"),
+  assigneeSlug: z.string().min(1).max(40).default("unassigned"),
   dueDate: z.string().datetime().nullable().optional(),
   isRecurring: z.boolean().default(false),
   recurInterval: z.number().int().min(1).max(365).nullable().optional(),
