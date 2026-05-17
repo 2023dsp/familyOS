@@ -87,7 +87,7 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
 
   if (!config) {
     return (
-      <div className="card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(160deg, var(--sand-soft), var(--surface))" }}>
+      <div className="card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 10 }}>
         <Icon name="sun" color="var(--sand)" size={22} />
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>Weather</div>
@@ -127,7 +127,6 @@ export function WeatherCard({ compact = false }: { compact?: boolean }) {
         display: "flex",
         flexDirection: "column",
         gap: open ? 12 : 0,
-        background: "linear-gradient(160deg, var(--sand-soft), var(--surface))",
         textAlign: "left",
         cursor: "pointer",
         width: "100%"
