@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 import { useCategories } from "./CategoriesContext";
 import { FamilyMembersProvider, useFamilyMembers, type Member } from "./FamilyMembersContext";
 import { emojiForIcon } from "../lib/kid-emoji";
+import { KidEmoji } from "./KidEmoji";
 
 const CHEERS = [
   "Amazing!",
@@ -116,15 +117,11 @@ function KidTile({
           display: "grid",
           placeItems: "center",
           boxShadow: done ? "none" : `inset 0 0 0 4px ${color}22`,
-          fontSize: 92,
-          lineHeight: 1,
           filter: done ? "grayscale(80%)" : "none"
         }}
       >
         {task.emoji ? (
-          <span aria-hidden style={{ display: "block", transform: "translateY(2px)" }}>
-            {task.emoji}
-          </span>
+          <KidEmoji emoji={task.emoji} size={96} label={task.title} />
         ) : (
           <Icon name={task.icon} color={color} accent={done ? "#C8B89A" : color + "88"} size={80} />
         )}

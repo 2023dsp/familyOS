@@ -1,8 +1,8 @@
 // Map our generic icon slug to a kid-friendly emoji. Emojis render as full
 // color illustrations on every modern OS — perfect for pre-readers.
 const EMOJI: Record<string, string> = {
-  // Hygiene / kids routine
-  teeth: "🦷",
+  // Hygiene / kids routine — prefer "action" emojis where they're clearer than the object alone.
+  teeth: "🪥",
   hands: "🧼",
   shower: "🚿",
   bath: "🛁",
@@ -14,7 +14,7 @@ const EMOJI: Record<string, string> = {
   // Kitchen
   breakfast: "🥞",
   fork: "🍝",
-  cup: "🥤",
+  cup: "🥛",
   table: "🍽️",
   dishes: "🍽️",
   // Cleaning
