@@ -87,7 +87,7 @@ async function main() {
   ];
   for (const m of members) {
     await prisma.familyMember.upsert({
-      where: { slug: m.slug },
+      where: { householdId_slug: { householdId, slug: m.slug } },
       update: { ...m, householdId },
       create: { ...m, householdId }
     });
