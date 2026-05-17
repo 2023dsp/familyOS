@@ -17,7 +17,7 @@ export async function GET() {
   const liveChore = { chore: { status: { not: "archived" as const }, householdId } };
   const liveChoreFilter = { status: { not: "archived" as const }, householdId };
 
-  const [todayDone, todayTotal, weekDone, weekTotal, davideDone, luizeDone, streakRaw] = await Promise.all([
+  const [todayDone, todayTotal, weekDone, weekTotal, perMemberRaw, streakRaw] = await Promise.all([
     prisma.choreCompletion.count({ where: { completedAt: { gte: ts, lte: te }, ...liveChore } }),
     prisma.chore.count({ where: { dueDate: { gte: ts, lte: te }, ...liveChoreFilter } }),
     prisma.choreCompletion.count({ where: { completedAt: { gte: ws, lte: we }, ...liveChore } }),
@@ -27,11 +27,10 @@ export async function GET() {
         OR: [{ dueDate: { gte: ws, lte: we } }, { completedAt: { gte: ws, lte: we } }]
       }
     }),
-    prisma.choreCompletion.count({
-      where: { completedAt: { gte: ws, lte: we }, member: { slug: "davide" }, ...liveChore }
-    }),
-    prisma.choreCompletion.count({
-      where: { completedAt: { gte: ws, lte: we }, member: { slug: "luize" }, ...liveChore }
+    prisma.choreCompletion.groupBy({
+      by: ["memberId"],
+      where: { completedAt: { gte: ws, lte: we }, ...liveChore, memberId: { not: null } },
+      _count: { _all: true }
     }),
     prisma.choreCompletion.findMany({
       where: liveChore,
@@ -40,6 +39,23 @@ export async function GET() {
       select: { completedAt: true }
     })
   ]);
+
+  // Resolve memberIds → names for the per-member breakdown.
+  const memberIds = perMemberRaw.map((r) => r.memberId).filter((v): v is string => !!v);
+  const members = memberIds.length
+    ? await prisma.familyMember.findMany({
+        where: { id: { in: memberIds }, householdId, isPerson: true }
+      })
+    : [];
+  const perMember = members
+    .map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      name: m.name,
+      color: m.color,
+      count: perMemberRaw.find((r) => r.memberId === m.id)?._count._all ?? 0
+    }))
+    .sort((a, b) => b.count - a.count);
 
   // streak = consecutive days (ending today or yesterday) with at least 1 completion
   const days = new Set(
@@ -66,7 +82,7 @@ export async function GET() {
   return NextResponse.json({
     today: { done: todayDone, total: todayTotal },
     week: { done: weekDone, total: weekTotal },
-    perMember: { davide: davideDone, luize: luizeDone },
+    perMember,
     streak,
     score
   });

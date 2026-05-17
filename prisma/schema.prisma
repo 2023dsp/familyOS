@@ -99,11 +99,13 @@ model HouseholdInvitation {
 
 model FamilyMember {
   id        String   @id @default(cuid())
-  slug      String   @unique
+  slug      String
   name      String
   initials  String
   color     String
   isPerson  Boolean  @default(true)
+  isChild   Boolean  @default(false)
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
   householdId String?
@@ -111,6 +113,8 @@ model FamilyMember {
 
   chores      Chore[]         @relation("ChoreAssignee")
   completions ChoreCompletion[]
+
+  @@unique([householdId, slug])
 }
 
 model Category {

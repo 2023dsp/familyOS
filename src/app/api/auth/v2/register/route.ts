@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../../lib/prisma";
 import { hashPasswordV2 } from "../../../../../lib/passwords";
 import { createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "../../../../../lib/auth";
+import { seedNewHousehold } from "../../../../../lib/seed-household";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
     });
     return { user, household };
   });
+
+  await seedNewHousehold(result.household.id, parsed.data.name ?? null);
 
   const token = createSessionToken({ userId: result.user.id, householdId: result.household.id });
   const res = NextResponse.json({

@@ -16,6 +16,7 @@ import { CategoriesEditor } from "./CategoriesEditor";
 import { PushSubscribeCard } from "./PushSubscribeCard";
 import { NotificationScheduleCard } from "./NotificationScheduleCard";
 import { WeatherSettingsCard } from "./WeatherSettingsCard";
+import { FamilyMembersCard } from "./FamilyMembersCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
 import { PullToRefresh } from "./PullToRefresh";
 import { WeatherCard } from "./WeatherCard";
@@ -702,13 +703,19 @@ function TabletHome(p: HomeProps) {
           <div style={{ marginTop: 14 }}>
             <Progress value={week.done} max={week.total || 1} color="var(--terracotta)" height={10} />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 12, fontWeight: 700 }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Avatar who="davide" size={20} /> Davide · {stats?.perMember.davide ?? 0}
-            </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Avatar who="luize" size={20} /> Luize · {stats?.perMember.luize ?? 0}
-            </span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12, fontSize: 12, fontWeight: 700 }}>
+            {stats?.perMember && stats.perMember.length > 0 ? (
+              stats.perMember.slice(0, 4).map((m) => (
+                <span key={m.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 99, background: m.color, color: "white", display: "grid", placeItems: "center", fontSize: 10, fontWeight: 800 }}>
+                    {m.name.charAt(0).toUpperCase()}
+                  </span>
+                  {m.name} · {m.count}
+                </span>
+              ))
+            ) : (
+              <span className="muted" style={{ fontSize: 12 }}>No completions yet</span>
+            )}
           </div>
         </div>
 
@@ -1080,11 +1087,7 @@ function Settings() {
         <h1 style={{ margin: "4px 0", fontSize: 28, fontWeight: 800 }}>Family preferences</h1>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
-        <SettingsCard title="Family members" icon="users">
-          <SettingsRow leading={<Avatar who="davide" size={32} />} label="Davide" desc="Admin" />
-          <SettingsRow leading={<Avatar who="luize" size={32} />} label="Luize" desc="Admin" />
-          <SettingsRow leading={<Avatar who="unassigned" size={32} />} label="Add a member" desc="Future child / guest mode" trailing={<span className="pill">Coming soon</span>} />
-        </SettingsCard>
+        <FamilyMembersCard />
 
         <CategoriesEditor />
 
