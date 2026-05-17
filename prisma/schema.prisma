@@ -54,6 +54,7 @@ model Household {
   name      String
   ownerId   String
   owner     User     @relation("HouseholdOwner", fields: [ownerId], references: [id])
+  timezone  String   @default("Europe/Rome")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { persistTokensFromCode } from "../../../../lib/google";
 import { publicBaseUrl } from "../../../../lib/url";
+import { getActiveHouseholdId } from "../../../../lib/household";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
   if (!state || state !== cookieState) return back(`google=error&message=state_mismatch`);
 
   try {
-    await persistTokensFromCode(code);
+    const householdId = await getActiveHouseholdId();
+    await persistTokensFromCode(householdId, code);
   } catch (e) {
     return back(`google=error&message=${encodeURIComponent((e as Error).message)}`);
   }

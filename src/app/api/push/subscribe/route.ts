@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { saveSubscription } from "../../../../lib/push";
+import { getActiveHouseholdId } from "../../../../lib/household";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,12 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   const ua = req.headers.get("user-agent") ?? undefined;
-  await saveSubscription({ ...parsed.data, userAgent: ua });
+  let householdId: string | null = null;
+  try {
+    householdId = await getActiveHouseholdId();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  await saveSubscription({ ...parsed.data, userAgent: ua, householdId });
   return NextResponse.json({ ok: true });
 }

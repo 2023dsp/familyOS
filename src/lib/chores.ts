@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { nextOccurrence } from "./recurrence";
-import { sendToAll } from "./push";
+import { sendToHousehold } from "./push";
 import { getActiveHouseholdId } from "./household";
 import { RuleSuggestionProvider } from "./suggest";
+import { dateAtTimeInTz, getHouseholdHMInTz } from "./timezone";
 import type { Chore, RecurrenceUnit } from "@prisma/client";
 
 const ruleSuggest = new RuleSuggestionProvider();
@@ -23,9 +24,9 @@ function autoEnrich(input: ChoreInput): { icon: string; category: string } {
   };
 }
 
-function notifyAsync(title: string, body: string, tag: string) {
+function notifyAsync(householdId: string, title: string, body: string, tag: string) {
   // Fire-and-forget — never block a CRUD call on push delivery.
-  void sendToAll({ title, body, url: "/", tag }).catch(() => {});
+  void sendToHousehold(householdId, { title, body, url: "/", tag }).catch(() => {});
 }
 
 export const choreInputSchema = z.object({
@@ -76,31 +77,34 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
   const primaryId = ids[0] ?? null;
   const householdId = await getActiveHouseholdId();
   const enriched = autoEnrich(input);
-  const chore = await prisma.chore.create({
-    data: {
-      title: input.title.trim(),
-      notes: input.notes ?? null,
-      icon: enriched.icon,
-      category: enriched.category,
-      priority: input.priority,
-      assigneeId: primaryId,
-      dueDate: input.dueDate ? new Date(input.dueDate) : null,
-      isRecurring: input.isRecurring,
-      recurInterval: input.isRecurring ? input.recurInterval ?? 1 : null,
-      recurUnit: input.isRecurring ? input.recurUnit ?? "week" : null,
-      recurDaysOfWeek: input.recurDaysOfWeek ?? null,
-      recurDayOfMonth: input.recurDayOfMonth ?? null,
-      important: input.important ?? false,
-      householdId
-    }
-  });
-  if (ids.length > 0) {
-    await prisma.choreAssignee.createMany({
-      data: ids.map((memberId) => ({ choreId: chore.id, memberId }))
+  const chore = await prisma.$transaction(async (tx) => {
+    const created = await tx.chore.create({
+      data: {
+        title: input.title.trim(),
+        notes: input.notes ?? null,
+        icon: enriched.icon,
+        category: enriched.category,
+        priority: input.priority,
+        assigneeId: primaryId,
+        dueDate: input.dueDate ? new Date(input.dueDate) : null,
+        isRecurring: input.isRecurring,
+        recurInterval: input.isRecurring ? input.recurInterval ?? 1 : null,
+        recurUnit: input.isRecurring ? input.recurUnit ?? "week" : null,
+        recurDaysOfWeek: input.recurDaysOfWeek ?? null,
+        recurDayOfMonth: input.recurDayOfMonth ?? null,
+        important: input.important ?? false,
+        householdId
+      }
     });
-  }
+    if (ids.length > 0) {
+      await tx.choreAssignee.createMany({
+        data: ids.map((memberId) => ({ choreId: created.id, memberId }))
+      });
+    }
+    return created;
+  });
   const tag = input.important ? "Important" : "New chore";
-  notifyAsync(`+ ${tag}`, chore.title, `chore-create-${chore.id}`);
+  notifyAsync(householdId, `+ ${tag}`, chore.title, `chore-create-${chore.id}`);
   return chore;
 }
 
@@ -129,15 +133,18 @@ export async function updateChore(id: string, input: Partial<ChoreInput>): Promi
     data.reminderAt = input.reminderAt ? new Date(input.reminderAt) : null;
     data.reminderSentAt = null; // reset so reminder fires anew when changed
   }
-  const updated = await prisma.chore.update({ where: { id }, data });
-  if (replaceAssignees !== null) {
-    await prisma.choreAssignee.deleteMany({ where: { choreId: id } });
-    if (replaceAssignees.length > 0) {
-      await prisma.choreAssignee.createMany({
-        data: replaceAssignees.map((memberId) => ({ choreId: id, memberId }))
-      });
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.chore.update({ where: { id }, data });
+    if (replaceAssignees !== null) {
+      await tx.choreAssignee.deleteMany({ where: { choreId: id } });
+      if (replaceAssignees.length > 0) {
+        await tx.choreAssignee.createMany({
+          data: replaceAssignees.map((memberId) => ({ choreId: id, memberId }))
+        });
+      }
     }
-  }
+    return u;
+  });
   return updated;
 }
 
@@ -178,16 +185,20 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
     ? await prisma.familyMember.findUnique({ where: { id: c.assigneeId } })
     : null;
   const by = member && member.isPerson ? ` · ${member.name}` : "";
-  notifyAsync("✓ Completed", `${c.title}${by}`, `chore-complete-${c.id}`);
+  if (c.householdId) notifyAsync(c.householdId, "✓ Completed", `${c.title}${by}`, `chore-complete-${c.id}`);
 
   let nextChore: Chore | null = null;
   if (c.isRecurring && c.recurInterval && c.recurUnit) {
     const baseDate = c.dueDate ?? now;
+    const household = c.householdId
+      ? await prisma.household.findUnique({ where: { id: c.householdId }, select: { timezone: true } })
+      : null;
     const next = nextOccurrence(baseDate, {
       interval: c.recurInterval,
       unit: c.recurUnit as RecurrenceUnit,
       daysOfWeek: c.recurDaysOfWeek ? c.recurDaysOfWeek.split(",").map((s) => s.trim()) : undefined,
-      dayOfMonth: c.recurDayOfMonth ?? undefined
+      dayOfMonth: c.recurDayOfMonth ?? undefined,
+      timezone: household?.timezone ?? undefined
     });
     nextChore = await prisma.chore.create({
       data: {
@@ -213,12 +224,17 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
         data: prevAssignees.map((a) => ({ choreId: nextChore!.id, memberId: a.memberId }))
       });
     }
-    // Re-schedule reminders to the new dueDate, keeping the original time-of-day.
+    // Re-schedule reminders to the new dueDate, keeping the original time-of-day
+    // in the HOUSEHOLD timezone (not server TZ).
     const prevReminders = await prisma.choreReminder.findMany({ where: { choreId: c.id } });
     if (prevReminders.length > 0) {
+      const household = c.householdId
+        ? await prisma.household.findUnique({ where: { id: c.householdId }, select: { timezone: true } })
+        : null;
+      const tz = household?.timezone ?? "Europe/Rome";
       const data = prevReminders.map((r) => {
-        const scheduledAt = new Date(next);
-        scheduledAt.setHours(r.scheduledAt.getHours(), r.scheduledAt.getMinutes(), 0, 0);
+        const { hour, minute } = getHouseholdHMInTz(r.scheduledAt, tz);
+        const scheduledAt = dateAtTimeInTz(next, hour, minute, tz);
         return { choreId: nextChore!.id, scheduledAt };
       });
       await prisma.choreReminder.createMany({ data });

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { syncGoogleCalendar } from "../../../../lib/google";
+import { syncAllHouseholds } from "../../../../lib/google";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const result = await syncGoogleCalendar();
-    return NextResponse.json({ ok: true, ...result });
+    const result = await syncAllHouseholds();
+    return NextResponse.json({ ok: true, households: result });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 400 });
   }

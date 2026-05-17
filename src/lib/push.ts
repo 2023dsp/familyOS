@@ -25,6 +25,7 @@ export async function saveSubscription(input: {
   keys: { p256dh: string; auth: string };
   userAgent?: string;
   label?: string;
+  householdId?: string | null;
 }): Promise<void> {
   await prisma.pushSubscription.upsert({
     where: { endpoint: input.endpoint },
@@ -33,24 +34,22 @@ export async function saveSubscription(input: {
       auth: input.keys.auth,
       userAgent: input.userAgent ?? null,
       label: input.label ?? null,
-      lastSeenAt: new Date()
+      lastSeenAt: new Date(),
+      ...(input.householdId ? { householdId: input.householdId } : {})
     },
     create: {
       endpoint: input.endpoint,
       p256dh: input.keys.p256dh,
       auth: input.keys.auth,
       userAgent: input.userAgent ?? null,
-      label: input.label ?? null
+      label: input.label ?? null,
+      householdId: input.householdId ?? null
     }
   });
 }
 
 export async function removeSubscription(endpoint: string): Promise<void> {
   await prisma.pushSubscription.deleteMany({ where: { endpoint } });
-}
-
-export async function listSubscriptions() {
-  return prisma.pushSubscription.findMany({ orderBy: { createdAt: "desc" } });
 }
 
 export type PushPayload = {
@@ -60,10 +59,21 @@ export type PushPayload = {
   tag?: string;
 };
 
-export async function sendToAll(payload: PushPayload): Promise<{ sent: number; pruned: number }> {
+/**
+ * Send a push to all subscriptions on a household. Must be scoped — sending to
+ * every subscription in the DB would leak chore notifications across families.
+ */
+export async function sendToHousehold(
+  householdId: string,
+  payload: PushPayload
+): Promise<{ sent: number; pruned: number }> {
   if (!configured()) throw new Error("VAPID keys not set");
+  if (!householdId) throw new Error("householdId required");
   configureOnce();
-  const subs = await listSubscriptions();
+  const subs = await prisma.pushSubscription.findMany({
+    where: { householdId },
+    orderBy: { createdAt: "desc" }
+  });
   let sent = 0;
   let pruned = 0;
   await Promise.all(

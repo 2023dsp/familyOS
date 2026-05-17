@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
-import { sendToAll } from "../../../../lib/push";
+import { sendToHousehold } from "../../../../lib/push";
+import { getActiveHouseholdId } from "../../../../lib/household";
 
 export const runtime = "nodejs";
 
 export async function POST() {
+  let householdId: string;
   try {
-    const out = await sendToAll({
+    householdId = await getActiveHouseholdId();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const out = await sendToHousehold(householdId, {
       title: "FamilyOS test",
       body: "If you see this, push notifications work on this device.",
       url: "/",

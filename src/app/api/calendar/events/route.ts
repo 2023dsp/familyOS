@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
   }
   const event = await createEvent(parsed.data);
-  // Fire-and-forget push to Google if connected
-  void pushLocalEventToGoogle(event.id).catch(() => {});
+  // Fire-and-forget push to Google if connected (per-household)
+  const householdId = await getActiveHouseholdId();
+  void pushLocalEventToGoogle(householdId, event.id).catch(() => {});
   return NextResponse.json({ event }, { status: 201 });
 }
