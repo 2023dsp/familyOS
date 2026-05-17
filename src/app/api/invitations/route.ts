@@ -10,9 +10,10 @@ import { publicBaseUrl } from "../../../lib/url";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// child = FamilyMember with isChild=true, not a login user → handled separately in family-members API.
 const createSchema = z.object({
   email: z.string().email(),
-  role: z.enum(["admin", "member", "child"]).default("member")
+  role: z.enum(["admin", "member"]).default("member")
 });
 
 async function requireOwnerOrAdmin(): Promise<{ householdId: string; userId: string } | NextResponse> {

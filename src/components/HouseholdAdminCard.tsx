@@ -7,7 +7,7 @@ type Household = { id: string; name: string };
 type Invite = {
   id: string;
   email: string;
-  role: "admin" | "member" | "child";
+  role: "admin" | "member";
   expiresAt: string;
   createdAt: string;
   token: string;
@@ -251,7 +251,7 @@ export function InvitesCard() {
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>Role:</span>
-            {(["member", "admin", "child"] as Invite["role"][]).map((r) => {
+            {(["member", "admin"] as Invite["role"][]).map((r) => {
               const sel = role === r;
               return (
                 <button

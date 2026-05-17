@@ -240,6 +240,21 @@ export function Dashboard() {
     load();
   }, [load]);
 
+  // Re-pull family members when CRUD elsewhere edits them, so AddChoreModal
+  // + Kids Mode see new kids/adults without a full page reload.
+  useEffect(() => {
+    const onChange = async () => {
+      try {
+        const res = await fetch("/api/family-members", { cache: "no-store" });
+        if (res.ok) setFamilyMembers((await res.json()).members);
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener("familyos-members-changed", onChange);
+    return () => window.removeEventListener("familyos-members-changed", onChange);
+  }, []);
+
   const hello = helloFor();
   const today = new Date();
   const todayChores = useMemo(
