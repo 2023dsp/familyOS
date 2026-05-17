@@ -91,6 +91,12 @@ export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [categories, setCategories] = useState<Category[] | null>(null);
+  type Me = {
+    user: { name: string | null; email: string } | null;
+    household: { id: string; name: string; members: Array<{ id: string; name: string; role: string }> } | null;
+    isKiosk: boolean;
+  };
+  const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState<AddChorePrefill | null>(null);
   const [opened, setOpened] = useState<ChoreRowData | null>(null);
