@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "./Icon";
 import { useCategories } from "./CategoriesContext";
 import { FamilyMembersProvider, useFamilyMembers, type Member } from "./FamilyMembersContext";
+import { emojiForIcon } from "../lib/kid-emoji";
 
 const CHEERS = [
   "Amazing!",
@@ -23,9 +24,29 @@ type ApiChore = {
   icon: string;
   category: string;
   status: "active" | "completed" | "archived";
+  completedAt: string | null;
+  dueDate: string | null;
   assignee: { slug: string } | null;
   assignees?: Array<{ member: { slug: string } }>;
 };
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function isTodayChore(c: ApiChore): boolean {
+  const today = new Date();
+  if (c.status === "active") {
+    // No due date → assume today (kids see all unscheduled tasks). Otherwise must be today or overdue.
+    if (!c.dueDate) return true;
+    const due = new Date(c.dueDate);
+    return due.getTime() <= today.getTime() || isSameDay(due, today);
+  }
+  if (c.status === "completed" && c.completedAt) {
+    return isSameDay(new Date(c.completedAt), today);
+  }
+  return false;
+}
 
 function softFromHex(hex: string): string {
   if (!hex.startsWith("#") || hex.length !== 7) return "rgba(60,45,25,0.06)";
@@ -49,7 +70,7 @@ function KidTile({
   why,
   onTap
 }: {
-  task: { id: string; title: string; icon: string };
+  task: { id: string; title: string; icon: string; emoji: string | null };
   color: string;
   done: boolean;
   why: string | null;
@@ -88,16 +109,25 @@ function KidTile({
     >
       <div
         style={{
-          width: 128,
-          height: 128,
+          width: 140,
+          height: 140,
           borderRadius: 32,
           background: "white",
           display: "grid",
           placeItems: "center",
-          boxShadow: done ? "none" : `inset 0 0 0 4px ${color}22`
+          boxShadow: done ? "none" : `inset 0 0 0 4px ${color}22`,
+          fontSize: 92,
+          lineHeight: 1,
+          filter: done ? "grayscale(80%)" : "none"
         }}
       >
-        <Icon name={task.icon} color={color} accent={done ? "#C8B89A" : color + "88"} size={80} />
+        {task.emoji ? (
+          <span aria-hidden style={{ display: "block", transform: "translateY(2px)" }}>
+            {task.emoji}
+          </span>
+        ) : (
+          <Icon name={task.icon} color={color} accent={done ? "#C8B89A" : color + "88"} size={80} />
+        )}
       </div>
       <div
         style={{
@@ -322,7 +352,7 @@ function KidsModeInner() {
   }, [kids, activeKidSlug]);
 
   async function load() {
-    const res = await fetch("/api/chores?status=active", { cache: "no-store" });
+    const res = await fetch("/api/chores?status=all", { cache: "no-store" });
     if (res.ok) setChores((await res.json()).chores);
   }
 
@@ -333,16 +363,27 @@ function KidsModeInner() {
   const kid = kids.find((k) => k.slug === activeKidSlug) ?? null;
   const kidChores = useMemo(() => {
     if (!kid) return [] as ApiChore[];
-    return chores.filter((c) => chorePersona(c, kid.slug));
+    return chores
+      .filter((c) => chorePersona(c, kid.slug))
+      .filter((c) => isTodayChore(c))
+      .sort((a, b) => {
+        // Active first, then completed at the bottom
+        const aDone = a.status === "completed" ? 1 : 0;
+        const bDone = b.status === "completed" ? 1 : 0;
+        return aDone - bDone;
+      });
   }, [chores, kid]);
 
-  const completed = kidChores.filter((c) => optimisticDone[c.id]).length;
+  const isDone = (c: ApiChore) => c.status === "completed" || !!optimisticDone[c.id];
+  const completed = kidChores.filter(isDone).length;
   const total = kidChores.length;
+  const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
 
-  async function complete(id: string, color: string, title: string) {
-    if (optimisticDone[id]) {
-      setOptimisticDone((s) => ({ ...s, [id]: false }));
-      await fetch(`/api/chores/${id}/complete`, {
+  async function complete(c: ApiChore, color: string) {
+    const currentlyDone = c.status === "completed" || !!optimisticDone[c.id];
+    if (currentlyDone) {
+      setOptimisticDone((s) => ({ ...s, [c.id]: false }));
+      await fetch(`/api/chores/${c.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ undo: true })
@@ -350,9 +391,9 @@ function KidsModeInner() {
       load();
       return;
     }
-    setOptimisticDone((s) => ({ ...s, [id]: true }));
+    setOptimisticDone((s) => ({ ...s, [c.id]: true }));
     setBurst({ msg: CHEERS[Math.floor(Math.random() * CHEERS.length)], color });
-    await fetch(`/api/chores/${id}/complete`, { method: "POST" }).catch(() => {});
+    await fetch(`/api/chores/${c.id}/complete`, { method: "POST" }).catch(() => {});
     // Don't reload immediately — let the celebration play. List refreshes on exit/next view.
   }
 
@@ -557,7 +598,7 @@ function KidsModeInner() {
           </div>
         </div>
         {total > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", minWidth: 220, flex: 1, maxWidth: 360 }}>
             <div
               style={{
                 fontSize: 13,
@@ -567,7 +608,27 @@ function KidsModeInner() {
                 textTransform: "uppercase"
               }}
             >
-              Today's stars
+              {completed} / {total} done
+            </div>
+            <div
+              style={{
+                width: "100%",
+                height: 18,
+                borderRadius: 999,
+                background: "rgba(0,0,0,0.06)",
+                overflow: "hidden",
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.06)"
+              }}
+            >
+              <div
+                style={{
+                  width: `${pct}%`,
+                  height: "100%",
+                  background: `linear-gradient(90deg, ${kid.color} 0%, ${kid.color}dd 100%)`,
+                  transition: "width 0.5s cubic-bezier(0.2,0.7,0.2,1.4)",
+                  boxShadow: `0 0 12px ${kid.color}66`
+                }}
+              />
             </div>
             <StarBar count={completed} total={total} color={kid.color} />
           </div>
@@ -600,14 +661,15 @@ function KidsModeInner() {
             const cat = categories.find((x) => x.id === c.category);
             const color = cat?.color ?? kid.color;
             const key = c.title.trim().toLowerCase();
+            const emoji = emojiForIcon(c.icon);
             return (
               <KidTile
                 key={c.id}
-                task={{ id: c.id, title: c.title, icon: c.icon }}
+                task={{ id: c.id, title: c.title, icon: c.icon, emoji }}
                 color={color}
-                done={!!optimisticDone[c.id]}
+                done={isDone(c)}
                 why={whyByTitle[key] ?? null}
-                onTap={() => complete(c.id, color, c.title)}
+                onTap={() => complete(c, color)}
               />
             );
           })}
