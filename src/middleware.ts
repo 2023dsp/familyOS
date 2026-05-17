@@ -3,7 +3,7 @@ import { SESSION_COOKIE_EDGE, verifySessionTokenEdge } from "./lib/auth-edge";
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|login|register|api/auth/login|api/auth/v2|api/cron).*)"
+    "/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js|login|register|forgot|reset|accept-invite|api/auth/login|api/auth/v2|api/invitations/accept|api/cron).*)"
   ]
 };
 

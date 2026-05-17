@@ -190,12 +190,19 @@ export default function LoginPage() {
         {error && <p style={{ marginTop: 14, color: "var(--danger)", fontWeight: 700 }}>{error}</p>}
 
         {mode === "email" && (
-          <p style={{ marginTop: 18, color: "var(--ink-3)", fontSize: 13 }}>
-            New here?{" "}
-            <Link href="/register" style={{ color: "var(--terracotta-deep)", fontWeight: 700, textDecoration: "none" }}>
-              Create a household
-            </Link>
-          </p>
+          <>
+            <p style={{ marginTop: 18, color: "var(--ink-3)", fontSize: 13 }}>
+              New here?{" "}
+              <Link href="/register" style={{ color: "var(--terracotta-deep)", fontWeight: 700, textDecoration: "none" }}>
+                Create a household
+              </Link>
+            </p>
+            <p style={{ marginTop: 6, color: "var(--ink-3)", fontSize: 13 }}>
+              <Link href="/forgot" style={{ color: "var(--ink-2)", fontWeight: 700, textDecoration: "none" }}>
+                Forgot password?
+              </Link>
+            </p>
+          </>
         )}
         {mode === "family" && (
           <p style={{ marginTop: 18, color: "var(--ink-4)", fontSize: 12 }}>

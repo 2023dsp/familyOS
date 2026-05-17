@@ -17,6 +17,7 @@ import { PushSubscribeCard } from "./PushSubscribeCard";
 import { NotificationScheduleCard } from "./NotificationScheduleCard";
 import { WeatherSettingsCard } from "./WeatherSettingsCard";
 import { FamilyMembersCard } from "./FamilyMembersCard";
+import { HouseholdAdminCard, InvitesCard } from "./HouseholdAdminCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
 import { PullToRefresh } from "./PullToRefresh";
 import { WeatherCard } from "./WeatherCard";
@@ -1139,7 +1140,13 @@ function Settings() {
   const renderSection = (k: SettingsSectionKey) => {
     switch (k) {
       case "family":
-        return <FamilyMembersCard />;
+        return (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <HouseholdAdminCard />
+            <InvitesCard />
+            <FamilyMembersCard />
+          </div>
+        );
       case "categories":
         return <CategoriesEditor />;
       case "notifications":
@@ -1158,7 +1165,7 @@ function Settings() {
           <SettingsCard title="Account" icon="user">
             <SettingsRow label="Shared family password" desc="Kiosk shortcut · set in .env (FAMILY_ACCESS_PASSWORD)" trailing={<span className="pill">Env-driven</span>} />
             <SettingsRow label="Email login" desc="Sign in with your email + bcrypt-hashed password" trailing={<span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>v2</span>} />
-            <SettingsRow label="Forgot password" desc="Email reset flow — coming soon" trailing={<span className="pill">Planned</span>} />
+            <SettingsRow label="Forgot password" desc="Receive a reset link by email at /forgot" trailing={<a href="/forgot" className="pill" style={{ background: "var(--terracotta-soft)", color: "var(--terracotta-deep)", textDecoration: "none" }}>Open</a>} />
           </SettingsCard>
         );
       case "integrations":

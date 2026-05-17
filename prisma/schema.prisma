@@ -285,3 +285,14 @@ model LoginAttempt {
 
   @@index([ip, createdAt])
 }
+
+model PasswordReset {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
