@@ -33,7 +33,7 @@ function deriveMySlug(me: { user: { name: string | null; email: string } | null 
   const first = members.find((m) => m.isPerson);
   return first?.slug ?? null;
 }
-import { humanDue, helloFor, isSameDay, startOfDay } from "../lib/date";
+import { helloFor, isSameDay, startOfDay } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
 
@@ -271,10 +271,20 @@ export function Dashboard() {
         .slice(0, 5),
     [chores]
   );
-  const recurringNext = useMemo(
-    () => chores.filter((c) => c.isRecurring && c.status !== "archived").slice(0, 6),
-    [chores]
-  );
+  const recurringNext = useMemo(() => {
+    // One row per recurring series — group by normalized title so a daily chore
+    // doesn't list every overdue instance separately.
+    const seen = new Set<string>();
+    const out: ApiChore[] = [];
+    for (const c of chores) {
+      if (!c.isRecurring || c.status === "archived") continue;
+      const key = c.title.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(c);
+    }
+    return out;
+  }, [chores]);
   const importantTasks = useMemo(
     () => chores.filter((c) => c.important && c.status !== "archived"),
     [chores]
@@ -1078,7 +1088,7 @@ function TabletHome(p: HomeProps) {
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Repeats</h2>
                 <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Auto</span>
               </div>
-              <RecurringList rows={recurringNext.slice(0, 4)} dense />
+              <RecurringList rows={recurringNext.slice(0, 8)} dense />
             </div>
           </div>
         </div>
@@ -1199,7 +1209,7 @@ function RecurringList({ rows, dense }: { rows: ApiChore[]; dense?: boolean }) {
             <div className="muted" style={{ fontSize: dense ? 11 : 12 }}>
               {r.recurInterval && r.recurUnit
                 ? formatRecurrence({ interval: r.recurInterval, unit: r.recurUnit, daysOfWeek: r.recurDaysOfWeek ? r.recurDaysOfWeek.split(",") : undefined })
-                : "—"} · next {humanDue(r.dueDate ? new Date(r.dueDate) : null) || "soon"}
+                : "—"}
             </div>
           </div>
           <Avatar who={(r.assignee?.slug ?? "unassigned") as AssigneeSlug} size={dense ? 22 : 26} />
