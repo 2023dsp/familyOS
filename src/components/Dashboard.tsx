@@ -23,7 +23,7 @@ import { PullToRefresh } from "./PullToRefresh";
 import { WeatherCard } from "./WeatherCard";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
 import { CategoriesProvider, useCategories } from "./CategoriesContext";
-import { FamilyMembersProvider, type Member } from "./FamilyMembersContext";
+import { FamilyMembersProvider, useFamilyMembers, type Member } from "./FamilyMembersContext";
 
 function deriveMySlug(me: { user: { name: string | null; email: string } | null } | null, members: Member[]): string | null {
   if (!me?.user) return null;
@@ -727,16 +727,35 @@ function Home(p: HomeProps) {
   return p.isWide ? <TabletHome {...p} /> : <MobileHome {...p} />;
 }
 
+type TodayView = "all" | "mine" | "adults";
+
 function TabletHome(p: HomeProps) {
   const { hello, dateLabel, stats, todayChores, mySlug, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd, onToggleImportant } = p;
-  const [todayMine, setTodayMine] = useState(false);
+  const members = useFamilyMembers();
+  const kidSlugs = useMemo(() => new Set(members.filter((m) => m.isPerson && m.isChild).map((m) => m.slug)), [members]);
+  const hasKids = kidSlugs.size > 0;
+  // Default to "adults" when kids exist (kid chores live in /kids anyway and just distract here).
+  const [todayView, setTodayView] = useState<TodayView>(hasKids ? "adults" : "all");
+  useEffect(() => {
+    if (!hasKids && todayView === "adults") setTodayView("all");
+  }, [hasKids, todayView]);
   const visibleToday = useMemo(() => {
-    if (!todayMine || !mySlug) return todayChores;
     return todayChores.filter((c) => {
       const slugs = c.assigneeSlugs && c.assigneeSlugs.length > 0 ? c.assigneeSlugs : [c.assigneeSlug];
-      return slugs.includes(mySlug);
+      if (todayView === "mine") {
+        if (!mySlug) return true;
+        return slugs.includes(mySlug);
+      }
+      if (todayView === "adults") {
+        // Hide only if EVERY assignee is a kid (kid-only chores).
+        return slugs.some((s) => !kidSlugs.has(s));
+      }
+      return true;
     });
-  }, [todayChores, todayMine, mySlug]);
+  }, [todayChores, todayView, mySlug, kidSlugs]);
+  const visibleDone = visibleToday.filter((c) => c.done).length;
+  const visibleTotal = visibleToday.length;
+  const visibleRemaining = visibleTotal - visibleDone;
   const week = stats?.week ?? { done: 0, total: 0 };
   const score = stats?.score ?? 0;
   const streak = stats?.streak ?? 0;
@@ -751,7 +770,7 @@ function TabletHome(p: HomeProps) {
             {hello.greeting}, <span style={{ color: "var(--terracotta)" }}>{p.householdName}</span>
           </h1>
           <div style={{ color: "var(--ink-3)", fontSize: 15, fontWeight: 600 }}>
-            {remainingToday > 0 ? `${remainingToday} chores left today` : "All done — nice."}
+            {visibleRemaining > 0 ? `${visibleRemaining} chores left today` : "All done — nice."}
           </div>
         </div>
         <button onClick={onAdd} className="btn btn-primary" style={{ padding: "14px 22px", fontSize: 15, borderRadius: 20 }} type="button">
@@ -764,14 +783,14 @@ function TabletHome(p: HomeProps) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Today</span>
             <span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>
-              <Icon name="check" color="var(--olive)" size={12} /> {completedToday}/{todayChores.length}
+              <Icon name="check" color="var(--olive)" size={12} /> {visibleDone}/{visibleTotal}
             </span>
           </div>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <Ring value={completedToday} max={todayChores.length || 1} size={96} stroke={10} color="var(--olive)" label={`${completedToday}/${todayChores.length}`} />
+            <Ring value={visibleDone} max={visibleTotal || 1} size={96} stroke={10} color="var(--olive)" label={`${visibleDone}/${visibleTotal}`} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1 }}>
-                {remainingToday > 0 ? `${remainingToday} to go` : "All done."}
+                {visibleRemaining > 0 ? `${visibleRemaining} to go` : "All done."}
               </div>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                 {remainingToday > 0 ? "After coffee?" : "Home in order."}
@@ -850,34 +869,35 @@ function TabletHome(p: HomeProps) {
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Today&apos;s chores</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {mySlug && (
-                  <div style={{ display: "flex", gap: 4, background: "var(--surface-2)", padding: 4, borderRadius: 99 }}>
-                    {[
-                      { key: false, label: "All" },
-                      { key: true, label: "Mine" }
-                    ].map((opt) => {
-                      const sel = todayMine === opt.key;
-                      return (
-                        <button
-                          key={String(opt.key)}
-                          type="button"
-                          onClick={() => setTodayMine(opt.key)}
-                          style={{
-                            padding: "5px 14px",
-                            borderRadius: 99,
-                            background: sel ? "var(--surface)" : "transparent",
-                            color: sel ? "var(--ink)" : "var(--ink-3)",
-                            fontWeight: 700,
-                            fontSize: 12,
-                            boxShadow: sel ? "var(--shadow-sm)" : "none"
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <div style={{ display: "flex", gap: 4, background: "var(--surface-2)", padding: 4, borderRadius: 99 }}>
+                  {(
+                    [
+                      hasKids ? { key: "adults" as TodayView, label: "Adults" } : null,
+                      { key: "all" as TodayView, label: "All" },
+                      mySlug ? { key: "mine" as TodayView, label: "Mine" } : null
+                    ].filter(Boolean) as Array<{ key: TodayView; label: string }>
+                  ).map((opt) => {
+                    const sel = todayView === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setTodayView(opt.key)}
+                        style={{
+                          padding: "5px 14px",
+                          borderRadius: 99,
+                          background: sel ? "var(--surface)" : "transparent",
+                          color: sel ? "var(--ink)" : "var(--ink-3)",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          boxShadow: sel ? "var(--shadow-sm)" : "none"
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 {visibleToday.some((c) => !c.done) ? (
                   <button
                     type="button"
@@ -903,7 +923,11 @@ function TabletHome(p: HomeProps) {
                 <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
                   <Icon name="trophy" color="var(--sand)" size={32} />
                   <p style={{ margin: "8px 0 0", fontWeight: 700 }}>
-                    {todayMine ? "Nothing of yours left today." : "Nothing left for today. The home is sorted."}
+                    {todayView === "mine"
+                      ? "Nothing of yours left today."
+                      : todayView === "adults"
+                        ? "No adult chores today. Kids ones live in Kids Mode."
+                        : "Nothing left for today. The home is sorted."}
                   </p>
                 </div>
               )}
