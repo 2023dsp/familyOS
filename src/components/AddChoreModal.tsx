@@ -84,6 +84,7 @@ export function AddChoreModal({
   const [due, setDue] = useState<string>(quickDate("today"));
   const [recurInterval, setRecurInterval] = useState<number | null>(prefill?.recurInterval ?? null);
   const [recurUnit, setRecurUnit] = useState<RecurrenceUnit | null>(prefill?.recurUnit ?? null);
+  const [recurDaysOfWeek, setRecurDaysOfWeek] = useState<string[]>([]);
   const [recurringEnabled, setRecurringEnabled] = useState<boolean>(
     prefill?.recurInterval != null && prefill?.recurUnit != null
   );
@@ -200,6 +201,10 @@ export function AddChoreModal({
           isRecurring: hasRecur,
           recurInterval: hasRecur ? recurInterval ?? undefined : undefined,
           recurUnit: hasRecur ? recurUnit ?? undefined : undefined,
+          recurDaysOfWeek:
+            hasRecur && recurUnit === "week" && recurDaysOfWeek.length > 0
+              ? recurDaysOfWeek.join(",")
+              : undefined,
           important
         })
       });
@@ -471,6 +476,48 @@ export function AddChoreModal({
                   </button>
                 );
               })}
+            </div>
+          )}
+          {recurringEnabled && recurUnit === "week" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              <span style={{ color: "var(--ink-3)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>
+                On these days (optional)
+              </span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {[
+                  { key: "mon", label: "Mon" },
+                  { key: "tue", label: "Tue" },
+                  { key: "wed", label: "Wed" },
+                  { key: "thu", label: "Thu" },
+                  { key: "fri", label: "Fri" },
+                  { key: "sat", label: "Sat" },
+                  { key: "sun", label: "Sun" }
+                ].map((d) => {
+                  const sel = recurDaysOfWeek.includes(d.key);
+                  return (
+                    <button
+                      key={d.key}
+                      type="button"
+                      onClick={() => {
+                        setRecurDaysOfWeek((prev) =>
+                          prev.includes(d.key) ? prev.filter((x) => x !== d.key) : [...prev, d.key]
+                        );
+                      }}
+                      style={{
+                        width: 46,
+                        height: 32,
+                        borderRadius: 10,
+                        background: sel ? "var(--olive)" : "var(--surface-2)",
+                        color: sel ? "white" : "var(--ink-2)",
+                        fontWeight: 800,
+                        fontSize: 11
+                      }}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </Section>

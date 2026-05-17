@@ -365,6 +365,7 @@ export function Dashboard() {
               stats={stats}
               chores={chores.map(toRowData)}
               todayChores={todayChores.map(toRowData)}
+              mySlug={mySlug}
               completedToday={completedToday}
               remainingToday={remainingToday}
               upcoming={upcoming.map(toRowData)}
@@ -702,6 +703,7 @@ type HomeProps = {
   stats: Stats | null;
   chores: ChoreRowData[];
   todayChores: ChoreRowData[];
+  mySlug: string | null;
   completedToday: number;
   remainingToday: number;
   upcoming: ChoreRowData[];
@@ -726,7 +728,15 @@ function Home(p: HomeProps) {
 }
 
 function TabletHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd, onToggleImportant } = p;
+  const { hello, dateLabel, stats, todayChores, mySlug, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd, onToggleImportant } = p;
+  const [todayMine, setTodayMine] = useState(false);
+  const visibleToday = useMemo(() => {
+    if (!todayMine || !mySlug) return todayChores;
+    return todayChores.filter((c) => {
+      const slugs = c.assigneeSlugs && c.assigneeSlugs.length > 0 ? c.assigneeSlugs : [c.assigneeSlug];
+      return slugs.includes(mySlug);
+    });
+  }, [todayChores, todayMine, mySlug]);
   const week = stats?.week ?? { done: 0, total: 0 };
   const score = stats?.score ?? 0;
   const streak = stats?.streak ?? 0;
@@ -837,35 +847,67 @@ function TabletHome(p: HomeProps) {
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, alignItems: "stretch" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
           <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Today&apos;s chores</h2>
-              {todayChores.some((c) => !c.done) ? (
-                <button
-                  type="button"
-                  onClick={p.onMarkAllDone}
-                  className="btn btn-ghost"
-                  style={{ padding: "6px 12px", fontSize: 12 }}
-                >
-                  <Icon name="check" color="var(--olive)" size={14} /> Mark all done
-                </button>
-              ) : (
-                <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Tap circle to complete · row to open</span>
-              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {mySlug && (
+                  <div style={{ display: "flex", gap: 4, background: "var(--surface-2)", padding: 4, borderRadius: 99 }}>
+                    {[
+                      { key: false, label: "All" },
+                      { key: true, label: "Mine" }
+                    ].map((opt) => {
+                      const sel = todayMine === opt.key;
+                      return (
+                        <button
+                          key={String(opt.key)}
+                          type="button"
+                          onClick={() => setTodayMine(opt.key)}
+                          style={{
+                            padding: "5px 14px",
+                            borderRadius: 99,
+                            background: sel ? "var(--surface)" : "transparent",
+                            color: sel ? "var(--ink)" : "var(--ink-3)",
+                            fontWeight: 700,
+                            fontSize: 12,
+                            boxShadow: sel ? "var(--shadow-sm)" : "none"
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {visibleToday.some((c) => !c.done) ? (
+                  <button
+                    type="button"
+                    onClick={p.onMarkAllDone}
+                    className="btn btn-ghost"
+                    style={{ padding: "6px 12px", fontSize: 12 }}
+                  >
+                    <Icon name="check" color="var(--olive)" size={14} /> Mark all done
+                  </button>
+                ) : (
+                  <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Tap circle · row to open</span>
+                )}
+              </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {loading && todayChores.length === 0 && (
+              {loading && visibleToday.length === 0 && (
                 <>
                   <SkeletonRow />
                   <SkeletonRow />
                 </>
               )}
-              {!loading && todayChores.length === 0 && (
+              {!loading && visibleToday.length === 0 && (
                 <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
                   <Icon name="trophy" color="var(--sand)" size={32} />
-                  <p style={{ margin: "8px 0 0", fontWeight: 700 }}>Nothing left for today. The home is sorted.</p>
+                  <p style={{ margin: "8px 0 0", fontWeight: 700 }}>
+                    {todayMine ? "Nothing of yours left today." : "Nothing left for today. The home is sorted."}
+                  </p>
                 </div>
               )}
-              {todayChores.map((c) => (
+              {visibleToday.map((c) => (
                 <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
               ))}
             </div>
