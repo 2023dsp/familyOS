@@ -735,10 +735,18 @@ function TabletHome(p: HomeProps) {
   const kidSlugs = useMemo(() => new Set(members.filter((m) => m.isPerson && m.isChild).map((m) => m.slug)), [members]);
   const hasKids = kidSlugs.size > 0;
   // Default to "adults" when kids exist (kid chores live in /kids anyway and just distract here).
-  const [todayView, setTodayView] = useState<TodayView>(hasKids ? "adults" : "all");
+  // Members load async, so hasKids starts false — bump the default once they arrive,
+  // unless the user already touched the toggle.
+  const [todayView, setTodayView] = useState<TodayView>("all");
+  const [todayViewTouched, setTodayViewTouched] = useState(false);
   useEffect(() => {
-    if (!hasKids && todayView === "adults") setTodayView("all");
-  }, [hasKids, todayView]);
+    if (todayViewTouched) return;
+    setTodayView(hasKids ? "adults" : "all");
+  }, [hasKids, todayViewTouched]);
+  const pickTodayView = useCallback((next: TodayView) => {
+    setTodayViewTouched(true);
+    setTodayView(next);
+  }, []);
   const visibleToday = useMemo(() => {
     return todayChores.filter((c) => {
       const slugs = c.assigneeSlugs && c.assigneeSlugs.length > 0 ? c.assigneeSlugs : [c.assigneeSlug];
@@ -882,7 +890,7 @@ function TabletHome(p: HomeProps) {
                       <button
                         key={opt.key}
                         type="button"
-                        onClick={() => setTodayView(opt.key)}
+                        onClick={() => pickTodayView(opt.key)}
                         style={{
                           padding: "5px 14px",
                           borderRadius: 99,
