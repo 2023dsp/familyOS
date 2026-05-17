@@ -58,6 +58,12 @@ model Household {
   updatedAt DateTime @updatedAt
 
   members   HouseholdMember[]
+  chores    Chore[]
+  templates ChoreTemplate[]
+  events    CalendarEvent[]
+  categories Category[]
+  familyMembers FamilyMember[]
+  pushSubscriptions PushSubscription[]
 }
 
 model HouseholdMember {
@@ -93,12 +99,15 @@ model HouseholdInvitation {
 
 model FamilyMember {
   id        String   @id @default(cuid())
-  slug      String   @unique // "davide" | "luize" | "both" | "unassigned"
+  slug      String   @unique
   name      String
   initials  String
-  color     String   // CSS var name e.g. "--davide"
+  color     String
   isPerson  Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   chores      Chore[]         @relation("ChoreAssignee")
   completions ChoreCompletion[]
@@ -109,12 +118,15 @@ model Category {
   slug      String   @unique
   label     String
   icon      String
-  color     String   // hex like "#C97B5B"
-  colorSoft String   // hex like "#E8C2AC"
+  color     String
+  colorSoft String
   sortOrder Int      @default(0)
   isCustom  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }
 
 model ChoreTemplate {
@@ -127,6 +139,11 @@ model ChoreTemplate {
   defaultRecurUnit     RecurrenceUnit?
   seasonal        Boolean        @default(false)
   createdAt       DateTime       @default(now())
+
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
 }
 
 model Chore {
@@ -159,11 +176,15 @@ model Chore {
   reminderAt      DateTime?  // legacy single reminder (kept for back-compat)
   reminderSentAt  DateTime?
 
+  householdId     String?
+  household       Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
   reminders       ChoreReminder[]
 
   completions     ChoreCompletion[]
 
   @@index([status, dueDate])
+  @@index([householdId, status])
 }
 
 model ChoreReminder {
@@ -205,10 +226,16 @@ model CalendarEvent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
   @@index([startsAt])
+  @@index([householdId])
 }
 
 model AppSetting {
+  // Global settings keyed by string. Household-scoped settings will use a
+  // namespaced key like "h_<householdId>_<key>" until a proper migration runs.
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
@@ -223,6 +250,11 @@ model PushSubscription {
   label      String?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
+
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
 }
 
 model LoginAttempt {

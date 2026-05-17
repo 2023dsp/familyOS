@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { listCategories } from "../../../lib/categories";
+import { getActiveHouseholdId } from "../../../lib/household";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
   }
   try {
+    const householdId = await getActiveHouseholdId();
     const cat = await prisma.category.create({
       data: {
         slug: parsed.data.slug.toLowerCase(),
@@ -40,7 +42,8 @@ export async function POST(req: NextRequest) {
         color: parsed.data.color,
         colorSoft: parsed.data.colorSoft,
         sortOrder: parsed.data.sortOrder ?? 100,
-        isCustom: true
+        isCustom: true,
+        householdId
       }
     });
     return NextResponse.json({ category: cat }, { status: 201 });

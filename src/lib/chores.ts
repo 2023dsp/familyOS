@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "./prisma";
 import { nextOccurrence } from "./recurrence";
 import { sendToAll } from "./push";
+import { getActiveHouseholdId } from "./household";
 import type { Chore, RecurrenceUnit } from "@prisma/client";
 
 function notifyAsync(title: string, body: string, tag: string) {
@@ -36,6 +37,7 @@ async function resolveAssigneeId(slug?: string | null): Promise<string | null> {
 
 export async function createChore(input: ChoreInput): Promise<Chore> {
   const assigneeId = await resolveAssigneeId(input.assigneeSlug);
+  const householdId = await getActiveHouseholdId();
   const chore = await prisma.chore.create({
     data: {
       title: input.title.trim(),
@@ -50,7 +52,8 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
       recurUnit: input.isRecurring ? input.recurUnit ?? "week" : null,
       recurDaysOfWeek: input.recurDaysOfWeek ?? null,
       recurDayOfMonth: input.recurDayOfMonth ?? null,
-      important: input.important ?? false
+      important: input.important ?? false,
+      householdId
     }
   });
   const tag = input.important ? "Important" : "New chore";
@@ -140,7 +143,8 @@ export async function completeChore(id: string, memberSlug?: string): Promise<{ 
         recurInterval: c.recurInterval,
         recurUnit: c.recurUnit,
         recurDaysOfWeek: c.recurDaysOfWeek,
-        recurDayOfMonth: c.recurDayOfMonth
+        recurDayOfMonth: c.recurDayOfMonth,
+        householdId: c.householdId
       }
     });
   }
@@ -169,8 +173,9 @@ export async function archiveChore(id: string): Promise<Chore> {
 
 export async function listChores(opts?: { status?: "active" | "completed" | "archived" | "all" }) {
   const status = opts?.status ?? "active";
+  const householdId = await getActiveHouseholdId();
   return prisma.chore.findMany({
-    where: status === "all" ? {} : { status },
+    where: status === "all" ? { householdId } : { householdId, status },
     include: { assignee: true },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }]
   });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
+import { getActiveHouseholdId } from "./household";
 
 export const PERSONAS = ["davide", "luize", "family", "other"] as const;
 export type Persona = (typeof PERSONAS)[number];
@@ -42,6 +43,7 @@ export function eventColor(persona?: string | null, fallback?: string | null): {
 export async function createEvent(input: EventInput) {
   const persona = input.persona ?? detectPersona(input.title);
   const color = PERSONA_META[persona].color;
+  const householdId = await getActiveHouseholdId();
   return prisma.calendarEvent.create({
     data: {
       title: input.title.trim(),
@@ -52,7 +54,8 @@ export async function createEvent(input: EventInput) {
       calendar: input.calendar ?? null,
       color,
       persona,
-      source: "local"
+      source: "local",
+      householdId
     }
   });
 }

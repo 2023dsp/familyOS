@@ -2,7 +2,65 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+const DEFAULT_HOUSEHOLD_KEY = "default_household_id";
+
+async function ensureDefaultHousehold() {
+  let setting = await prisma.appSetting.findUnique({ where: { key: DEFAULT_HOUSEHOLD_KEY } });
+  if (setting && setting.value) {
+    const ex = await prisma.household.findUnique({ where: { id: setting.value } });
+    if (ex) return ex.id;
+  }
+  const any = await prisma.household.findFirst({ orderBy: { createdAt: "asc" } });
+  if (any) {
+    await prisma.appSetting.upsert({
+      where: { key: DEFAULT_HOUSEHOLD_KEY },
+      update: { value: any.id },
+      create: { key: DEFAULT_HOUSEHOLD_KEY, value: any.id }
+    });
+    return any.id;
+  }
+  let owner = await prisma.user.findUnique({ where: { email: "kiosk@familyos.local" } });
+  if (!owner) {
+    owner = await prisma.user.create({
+      data: {
+        email: "kiosk@familyos.local",
+        passwordHash: "$2a$12$RVxQ4lA0G93z3HtBJlfLeOlQ1cZJULJDx6tn8X4qZlYqzZqv1nUUW",
+        name: "Kiosk"
+      }
+    });
+  }
+  const hh = await prisma.household.create({
+    data: { name: "Our home", ownerId: owner.id }
+  });
+  await prisma.householdMember.upsert({
+    where: { userId_householdId: { userId: owner.id, householdId: hh.id } },
+    update: {},
+    create: { userId: owner.id, householdId: hh.id, role: "owner" }
+  });
+  await prisma.appSetting.upsert({
+    where: { key: DEFAULT_HOUSEHOLD_KEY },
+    update: { value: hh.id },
+    create: { key: DEFAULT_HOUSEHOLD_KEY, value: hh.id }
+  });
+  console.log("Created default household", hh.id);
+  return hh.id;
+}
+
+async function backfill(householdId) {
+  const r1 = await prisma.chore.updateMany({ where: { householdId: null }, data: { householdId } });
+  const r2 = await prisma.choreTemplate.updateMany({ where: { householdId: null }, data: { householdId } });
+  const r3 = await prisma.calendarEvent.updateMany({ where: { householdId: null }, data: { householdId } });
+  const r4 = await prisma.category.updateMany({ where: { householdId: null }, data: { householdId } });
+  const r5 = await prisma.familyMember.updateMany({ where: { householdId: null }, data: { householdId } });
+  const r6 = await prisma.pushSubscription.updateMany({ where: { householdId: null }, data: { householdId } });
+  const total = r1.count + r2.count + r3.count + r4.count + r5.count + r6.count;
+  if (total > 0) console.log(`Backfilled ${total} rows with householdId=${householdId}`);
+}
+
 async function main() {
+  const householdId = await ensureDefaultHousehold();
+  await backfill(householdId);
+
   const defaultCategories = [
     { slug: "cleaning", label: "Cleaning", icon: "broom", color: "#C97B5B", colorSoft: "#E8C2AC", sortOrder: 10 },
     { slug: "kitchen", label: "Kitchen", icon: "dishes", color: "#3F4B3B", colorSoft: "#B5C2A6", sortOrder: 20 },
@@ -16,8 +74,8 @@ async function main() {
   for (const c of defaultCategories) {
     await prisma.category.upsert({
       where: { slug: c.slug },
-      update: {},
-      create: { ...c, isCustom: false }
+      update: { householdId },
+      create: { ...c, isCustom: false, householdId }
     });
   }
 
@@ -28,7 +86,11 @@ async function main() {
     { slug: "unassigned", name: "Anyone", initials: "?", color: "--ink-3", isPerson: false }
   ];
   for (const m of members) {
-    await prisma.familyMember.upsert({ where: { slug: m.slug }, update: m, create: m });
+    await prisma.familyMember.upsert({
+      where: { slug: m.slug },
+      update: { ...m, householdId },
+      create: { ...m, householdId }
+    });
   }
 
   const templates = [
@@ -47,8 +109,8 @@ async function main() {
   ];
   for (const t of templates) {
     const existing = await prisma.choreTemplate.findFirst({ where: { title: t.title } });
-    if (existing) await prisma.choreTemplate.update({ where: { id: existing.id }, data: t });
-    else await prisma.choreTemplate.create({ data: t });
+    if (existing) await prisma.choreTemplate.update({ where: { id: existing.id }, data: { ...t, householdId } });
+    else await prisma.choreTemplate.create({ data: { ...t, householdId } });
   }
 
   const choreCount = await prisma.chore.count();
@@ -63,13 +125,13 @@ async function main() {
 
     await prisma.chore.createMany({
       data: [
-        { title: "Water the kitchen herbs", icon: "drop", category: "garden", priority: "low", assigneeId: luize && luize.id, dueDate: today, isRecurring: true, recurInterval: 2, recurUnit: "day" },
-        { title: "Take the recycling out", icon: "trash", category: "cleaning", priority: "medium", assigneeId: davide && davide.id, dueDate: today, isRecurring: true, recurInterval: 1, recurUnit: "week", recurDaysOfWeek: "mon", notes: "Bins go out before 7:30" },
-        { title: "Empty the dishwasher", icon: "dishes", category: "kitchen", priority: "medium", assigneeId: both && both.id, dueDate: today, isRecurring: true, recurInterval: 1, recurUnit: "day" },
-        { title: "Pay the electricity bill", icon: "card", category: "bills", priority: "high", assigneeId: davide && davide.id, dueDate: tomorrow, isRecurring: true, recurInterval: 1, recurUnit: "month", recurDayOfMonth: 28, notes: "Direct debit pending" },
-        { title: "Clean the sofa", icon: "sofa", category: "home", priority: "medium", assigneeId: both && both.id, dueDate: nextWeek, isRecurring: true, recurInterval: 1, recurUnit: "month" },
-        { title: "Buy two warm-white light bulbs", icon: "bulb", category: "errands", priority: "low", assigneeId: luize && luize.id, dueDate: nextWeek, notes: "E27 / 6W / dimmable" },
-        { title: "Vacuum the bedroom", icon: "broom", category: "cleaning", priority: "low", assigneeId: davide && davide.id, dueDate: today, isRecurring: true, recurInterval: 1, recurUnit: "week", recurDaysOfWeek: "tue" }
+        { title: "Water the kitchen herbs", icon: "drop", category: "garden", priority: "low", assigneeId: luize && luize.id, dueDate: today, isRecurring: true, recurInterval: 2, recurUnit: "day", householdId },
+        { title: "Take the recycling out", icon: "trash", category: "cleaning", priority: "medium", assigneeId: davide && davide.id, dueDate: today, isRecurring: true, recurInterval: 1, recurUnit: "week", recurDaysOfWeek: "mon", notes: "Bins go out before 7:30", householdId },
+        { title: "Empty the dishwasher", icon: "dishes", category: "kitchen", priority: "medium", assigneeId: both && both.id, dueDate: today, isRecurring: true, recurInterval: 1, recurUnit: "day", householdId },
+        { title: "Pay the electricity bill", icon: "card", category: "bills", priority: "high", assigneeId: davide && davide.id, dueDate: tomorrow, isRecurring: true, recurInterval: 1, recurUnit: "month", recurDayOfMonth: 28, notes: "Direct debit pending", householdId },
+        { title: "Clean the sofa", icon: "sofa", category: "home", priority: "medium", assigneeId: both && both.id, dueDate: nextWeek, isRecurring: true, recurInterval: 1, recurUnit: "month", householdId },
+        { title: "Buy two warm-white light bulbs", icon: "bulb", category: "errands", priority: "low", assigneeId: luize && luize.id, dueDate: nextWeek, notes: "E27 / 6W / dimmable", householdId },
+        { title: "Vacuum the bedroom", icon: "broom", category: "cleaning", priority: "low", assigneeId: davide && davide.id, dueDate: today, isRecurring: true, recurInterval: 1, recurUnit: "week", recurDaysOfWeek: "tue", householdId }
       ]
     });
   }

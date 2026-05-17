@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { getActiveHouseholdId } from "./household";
 
 export const DEFAULT_CATEGORIES: Array<{
   slug: string;
@@ -29,5 +30,9 @@ export async function ensureDefaultCategoriesSeeded() {
 }
 
 export async function listCategories() {
-  return prisma.category.findMany({ orderBy: [{ sortOrder: "asc" }, { label: "asc" }] });
+  const householdId = await getActiveHouseholdId();
+  return prisma.category.findMany({
+    where: { householdId },
+    orderBy: [{ sortOrder: "asc" }, { label: "asc" }]
+  });
 }
