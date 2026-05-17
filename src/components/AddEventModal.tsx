@@ -5,13 +5,17 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { useMembersForPersona } from "./FamilyMembersContext";
 
-const PERSONAS = [
-  { id: "davide", label: "Davide", color: "#6F8AA8", soft: "#D6E0EB" },
-  { id: "luize", label: "Luize", color: "#D89AA0", soft: "#F4DCDF" },
-  { id: "family", label: "Family", color: "#C97B5B", soft: "#E8C2AC" },
-  { id: "other", label: "Other", color: "#5C4F3F", soft: "#DFD0B4" }
-] as const;
-type Persona = (typeof PERSONAS)[number]["id"];
+const FAMILY_OPT = { id: "family", label: "Family", color: "#C97B5B", soft: "#E8C2AC" };
+const OTHER_OPT = { id: "other", label: "Other", color: "#5C4F3F", soft: "#DFD0B4" };
+type Persona = string;
+
+function softenHex(hex: string): string {
+  if (!hex || !hex.startsWith("#") || hex.length !== 7) return "rgba(60,45,25,0.06)";
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, 0.18)`;
+}
 
 function localToInputDate(d: Date): string {
   const y = d.getFullYear();
