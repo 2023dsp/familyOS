@@ -39,10 +39,12 @@ function inputsToIso(dateStr: string, timeStr: string): string | null {
   return new Date(y, m - 1, d, hh, mm, 0, 0).toISOString();
 }
 
-function detectPersona(title: string): Persona {
+function detectPersona(title: string, members: Array<{ slug: string; name: string }>): Persona {
   const t = title.toLowerCase();
-  if (/\bdavide\b/.test(t)) return "davide";
-  if (/\bluize\b/.test(t)) return "luize";
+  for (const m of members) {
+    const needle = m.name.toLowerCase();
+    if (needle && new RegExp(`\\b${needle.replace(/[^a-z0-9]/g, ".")}\\b`).test(t)) return m.slug;
+  }
   if (/\bfamiglia\b|\bfamily\b|\bcasa\b|\bhome\b/.test(t)) return "family";
   return "other";
 }
