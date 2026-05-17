@@ -30,7 +30,7 @@ export function useMemberBySlug(slug: string | null | undefined): Member | undef
 
 /**
  * Returns the list of members suitable for the "Who is this chore for?"
- * picker: persons first (sorted), then non-person rows (Both / Anyone).
+ * picker: persons first (sorted), then non-person rows (Anyone).
  */
 export function useAssignableMembers(): Member[] {
   const list = useFamilyMembers();

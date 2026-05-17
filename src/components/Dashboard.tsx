@@ -287,8 +287,11 @@ export function Dashboard() {
     if (filter === "today") return base.filter((c) => c.dueDate && isSameDay(new Date(c.dueDate), today));
     if (filter === "upcoming") return base.filter((c) => c.dueDate && new Date(c.dueDate) > startOfDay(today));
     if (filter === "mine") {
-      const mySlugs = mySlug ? [mySlug, "both"] : [];
-      return base.filter((c) => mySlugs.includes(c.assignee?.slug ?? ""));
+      if (!mySlug) return [] as ApiChore[];
+      return base.filter((c) => {
+        if (c.assignee?.slug === mySlug) return true;
+        return (c.assignees ?? []).some((a) => a.member.slug === mySlug);
+      });
     }
     return base;
   }, [chores, filter]);

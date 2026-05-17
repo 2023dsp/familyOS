@@ -45,7 +45,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!existing || existing.householdId !== householdId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (existing.slug === "both" || existing.slug === "unassigned") {
+  if (existing.slug === "unassigned") {
     return NextResponse.json({ error: "Cannot delete reserved members" }, { status: 400 });
   }
   const usage = await prisma.chore.count({ where: { assigneeId: id, householdId } });

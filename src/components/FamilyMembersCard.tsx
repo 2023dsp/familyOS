@@ -107,7 +107,7 @@ export function FamilyMembersCard() {
 
   const real = useMemo(
     () =>
-      members?.filter((m) => m.isPerson && m.slug !== "both" && m.slug !== "unassigned") ?? null,
+      members?.filter((m) => m.isPerson && m.slug !== "unassigned") ?? null,
     [members]
   );
   const adults = useMemo(() => real?.filter((m) => !m.isChild) ?? [], [real]);

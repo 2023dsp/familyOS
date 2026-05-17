@@ -132,9 +132,6 @@ input, textarea, select { font-family: inherit; }
   color: var(--surface);
   flex-shrink: 0;
 }
-.avatar-davide { background: var(--davide); }
-.avatar-luize { background: var(--luize); }
-.avatar-both { background: linear-gradient(135deg, var(--davide) 0 50%, var(--luize) 50% 100%); }
 .avatar-unassigned {
   background: transparent;
   color: var(--ink-3);

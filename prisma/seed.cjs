@@ -23,7 +23,6 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const SYSTEM_MEMBERS = [
-  { slug: "both", name: "Both", initials: "+", color: "#C97B5B", isPerson: false },
   { slug: "unassigned", name: "Anyone", initials: "?", color: "#8A7A65", isPerson: false }
 ];
 

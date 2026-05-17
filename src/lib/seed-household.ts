@@ -67,20 +67,6 @@ export async function seedNewHousehold(householdId: string, ownerName: string | 
     }
   });
   await prisma.familyMember.upsert({
-    where: { householdId_slug: { householdId, slug: "both" } },
-    update: {},
-    create: {
-      slug: "both",
-      name: "Both",
-      initials: "++",
-      color: "#C97B5B",
-      isPerson: false,
-      isChild: false,
-      sortOrder: 100,
-      householdId
-    }
-  });
-  await prisma.familyMember.upsert({
     where: { householdId_slug: { householdId, slug: "unassigned" } },
     update: {},
     create: {
