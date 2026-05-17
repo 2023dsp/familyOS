@@ -73,7 +73,7 @@ async function main() {
   ];
   for (const c of defaultCategories) {
     await prisma.category.upsert({
-      where: { slug: c.slug },
+      where: { householdId_slug: { householdId, slug: c.slug } },
       update: { householdId },
       create: { ...c, isCustom: false, householdId }
     });
