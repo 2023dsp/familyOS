@@ -5,7 +5,7 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
 import { Segmented } from "./Segmented";
-import { type AssigneeSlug, type PriorityKey } from "../lib/catalog";
+import { type PriorityKey } from "../lib/catalog";
 import { useCategories } from "./CategoriesContext";
 import { useAssignableMembers } from "./FamilyMembersContext";
 import type { Suggestion } from "../lib/suggest";
@@ -72,7 +72,9 @@ export function AddChoreModal({
   const [text, setText] = useState(prefill?.title ?? "");
   const [icon, setIcon] = useState(prefill?.icon ?? "broom");
   const [category, setCategory] = useState(prefill?.category ?? "cleaning");
-  const [assignee, setAssignee] = useState<AssigneeSlug>("unassigned");
+  const [assignees, setAssignees] = useState<string[]>([]);
+  const toggleAssignee = (slug: string) =>
+    setAssignees((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
   const [priority, setPriority] = useState<PriorityKey>(prefill?.priority ?? "medium");
   const [due, setDue] = useState<string>(quickDate("today"));
   const [recurInterval, setRecurInterval] = useState<number | null>(prefill?.recurInterval ?? null);
@@ -188,7 +190,7 @@ export function AddChoreModal({
           icon,
           category,
           priority,
-          assigneeSlug: assignee,
+          assigneeSlugs: assignees,
           dueDate: dueInputToIso(due),
           isRecurring: hasRecur,
           recurInterval: hasRecur ? recurInterval ?? undefined : undefined,
@@ -361,16 +363,17 @@ export function AddChoreModal({
           </div>
         </Section>
 
-        {/* Assignee + Priority */}
-        <Section label="Assignee">
+        {/* Assignees (multi-select) */}
+        <Section label="Assignees">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {members.map((m) => {
-              const sel = assignee === m.slug;
+              const sel = assignees.includes(m.slug);
               return (
                 <button
                   key={m.id}
-                  onClick={() => setAssignee(m.slug)}
+                  onClick={() => toggleAssignee(m.slug)}
                   type="button"
+                  aria-pressed={sel}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -385,6 +388,7 @@ export function AddChoreModal({
                 >
                   <Avatar who={m.slug} size={26} />
                   {m.name}
+                  {sel && <Icon name="check" color="var(--ink)" size={12} />}
                 </button>
               );
             })}
@@ -392,6 +396,9 @@ export function AddChoreModal({
               <span className="muted" style={{ fontSize: 12 }}>No members yet. Add some in Settings → Household.</span>
             )}
           </div>
+          {assignees.length === 0 && members.length > 0 && (
+            <span className="muted" style={{ fontSize: 12 }}>Tap a member to assign. Leave empty for unassigned.</span>
+          )}
         </Section>
 
         <Section label="Priority">

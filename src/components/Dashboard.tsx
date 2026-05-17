@@ -44,6 +44,7 @@ type ApiChore = {
   category: string;
   priority: PriorityKey;
   assignee: { slug: string; name: string } | null;
+  assignees?: Array<{ member: { slug: string; name: string; color: string; initials: string } }>;
   dueDate: string | null;
   isRecurring: boolean;
   recurInterval: number | null;
@@ -76,14 +77,20 @@ type Stats = {
 
 
 function toRowData(c: ApiChore): ChoreRowData {
-  const slug = (c.assignee?.slug ?? "unassigned") as AssigneeSlug;
+  const slugs = c.assignees && c.assignees.length > 0
+    ? c.assignees.map((a) => a.member.slug)
+    : c.assignee?.slug
+      ? [c.assignee.slug]
+      : [];
+  const primary = (slugs[0] ?? "unassigned") as AssigneeSlug;
   return {
     id: c.id,
     title: c.title,
     icon: c.icon,
     category: c.category,
     priority: c.priority,
-    assigneeSlug: slug || "unassigned",
+    assigneeSlug: primary,
+    assigneeSlugs: slugs,
     dueDate: c.dueDate,
     isRecurring: c.isRecurring,
     recurInterval: c.recurInterval,

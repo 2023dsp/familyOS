@@ -17,6 +17,7 @@ export const choreInputSchema = z.object({
   category: z.string().min(1).max(40).default("cleaning"),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
   assigneeSlug: z.string().min(1).max(40).default("unassigned"),
+  assigneeSlugs: z.array(z.string().min(1).max(40)).optional(),
   dueDate: z.string().datetime().nullable().optional(),
   isRecurring: z.boolean().default(false),
   recurInterval: z.number().int().min(1).max(365).nullable().optional(),
@@ -36,8 +37,25 @@ async function resolveAssigneeId(slug?: string | null): Promise<string | null> {
   return m?.id ?? null;
 }
 
+async function resolveAssigneeIds(slugs: string[] | undefined): Promise<string[]> {
+  if (!slugs || slugs.length === 0) return [];
+  const householdId = await getActiveHouseholdId();
+  const members = await prisma.familyMember.findMany({
+    where: { householdId, slug: { in: slugs } },
+    select: { id: true }
+  });
+  return members.map((m) => m.id);
+}
+
 export async function createChore(input: ChoreInput): Promise<Chore> {
-  const assigneeId = await resolveAssigneeId(input.assigneeSlug);
+  const slugs = (input.assigneeSlugs && input.assigneeSlugs.length > 0
+    ? input.assigneeSlugs
+    : input.assigneeSlug
+      ? [input.assigneeSlug]
+      : []
+  ).filter((s) => s && s !== "unassigned");
+  const ids = await resolveAssigneeIds(slugs);
+  const primaryId = ids[0] ?? null;
   const householdId = await getActiveHouseholdId();
   const chore = await prisma.chore.create({
     data: {
@@ -46,7 +64,7 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
       icon: input.icon,
       category: input.category,
       priority: input.priority,
-      assigneeId,
+      assigneeId: primaryId,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
       isRecurring: input.isRecurring,
       recurInterval: input.isRecurring ? input.recurInterval ?? 1 : null,
@@ -57,6 +75,11 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
       householdId
     }
   });
+  if (ids.length > 0) {
+    await prisma.choreAssignee.createMany({
+      data: ids.map((memberId) => ({ choreId: chore.id, memberId }))
+    });
+  }
   const tag = input.important ? "Important" : "New chore";
   notifyAsync(`+ ${tag}`, chore.title, `chore-create-${chore.id}`);
   return chore;
@@ -70,6 +93,12 @@ export async function updateChore(id: string, input: Partial<ChoreInput>): Promi
   if (input.category !== undefined) data.category = input.category;
   if (input.priority !== undefined) data.priority = input.priority;
   if (input.assigneeSlug !== undefined) data.assigneeId = await resolveAssigneeId(input.assigneeSlug);
+  // Multi-assignee replacement: if assigneeSlugs is passed (even empty), reset the join table.
+  let replaceAssignees: string[] | null = null;
+  if (input.assigneeSlugs !== undefined) {
+    replaceAssignees = await resolveAssigneeIds(input.assigneeSlugs.filter((s) => s !== "unassigned"));
+    data.assigneeId = replaceAssignees[0] ?? null;
+  }
   if (input.dueDate !== undefined) data.dueDate = input.dueDate ? new Date(input.dueDate) : null;
   if (input.isRecurring !== undefined) data.isRecurring = input.isRecurring;
   if (input.recurInterval !== undefined) data.recurInterval = input.recurInterval;
@@ -81,7 +110,16 @@ export async function updateChore(id: string, input: Partial<ChoreInput>): Promi
     data.reminderAt = input.reminderAt ? new Date(input.reminderAt) : null;
     data.reminderSentAt = null; // reset so reminder fires anew when changed
   }
-  return prisma.chore.update({ where: { id }, data });
+  const updated = await prisma.chore.update({ where: { id }, data });
+  if (replaceAssignees !== null) {
+    await prisma.choreAssignee.deleteMany({ where: { choreId: id } });
+    if (replaceAssignees.length > 0) {
+      await prisma.choreAssignee.createMany({
+        data: replaceAssignees.map((memberId) => ({ choreId: id, memberId }))
+      });
+    }
+  }
+  return updated;
 }
 
 export async function completeChore(id: string, memberSlug?: string): Promise<{ completed: Chore; next?: Chore | null }> {
@@ -178,7 +216,10 @@ export async function listChores(opts?: { status?: "active" | "completed" | "arc
   const householdId = await getActiveHouseholdId();
   return prisma.chore.findMany({
     where: status === "all" ? { householdId } : { householdId, status },
-    include: { assignee: true },
+    include: {
+      assignee: true,
+      assignees: { include: { member: true } }
+    },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }]
   });
 }

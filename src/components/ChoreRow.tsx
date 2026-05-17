@@ -15,6 +15,7 @@ export type ChoreRowData = {
   category: string;
   priority: PriorityKey;
   assigneeSlug: AssigneeSlug;
+  assigneeSlugs?: string[];
   dueDate: string | null;
   isRecurring: boolean;
   recurInterval: number | null;
@@ -25,6 +26,50 @@ export type ChoreRowData = {
   reminderAt?: string | null;
   notes?: string | null;
 };
+
+function AvatarStack({ slugs, size }: { slugs: string[]; size: number }) {
+  const max = 3;
+  const visible = slugs.slice(0, max);
+  const overflow = slugs.length - visible.length;
+  const overlap = Math.round(size * 0.35);
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center" }}>
+      {visible.map((s, i) => (
+        <span
+          key={s}
+          style={{
+            marginLeft: i === 0 ? 0 : -overlap,
+            border: "2px solid var(--surface)",
+            borderRadius: 999,
+            display: "inline-flex"
+          }}
+        >
+          <Avatar who={s} size={size} />
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span
+          style={{
+            marginLeft: -overlap,
+            width: size,
+            height: size,
+            borderRadius: 999,
+            background: "var(--ink-3)",
+            color: "white",
+            display: "grid",
+            placeItems: "center",
+            fontWeight: 800,
+            fontSize: size * 0.36,
+            border: "2px solid var(--surface)",
+            flexShrink: 0
+          }}
+        >
+          +{overflow}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function PriorityDots({ p }: { p: PriorityKey }) {
   const pr = PRIORITIES[p];
@@ -174,7 +219,11 @@ export function ChoreRow({
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-        <Avatar who={chore.assigneeSlug} size={dense ? 26 : 32} />
+        {chore.assigneeSlugs && chore.assigneeSlugs.length > 0 ? (
+          <AvatarStack slugs={chore.assigneeSlugs} size={dense ? 26 : 32} />
+        ) : (
+          <Avatar who={chore.assigneeSlug} size={dense ? 26 : 32} />
+        )}
         <PriorityDots p={chore.priority} />
       </div>
     </div>

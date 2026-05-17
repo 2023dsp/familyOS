@@ -121,6 +121,15 @@ export function ChoreDetailModal({
         assigneeSlug: ((): AssigneeSlug => {
           const slug = c.assignee?.slug ?? (typeof data.assigneeSlug === "string" ? data.assigneeSlug : null);
           return slug ?? "unassigned";
+        })(),
+        assigneeSlugs: ((): string[] => {
+          if (Array.isArray(c.assignees) && c.assignees.length > 0) {
+            return c.assignees
+              .map((a: { member?: { slug?: string | null } | null }) => a.member?.slug)
+              .filter((s: string | null | undefined): s is string => !!s);
+          }
+          if (Array.isArray(data.assigneeSlugs)) return data.assigneeSlugs as string[];
+          return prev.assigneeSlugs ?? [];
         })()
       }));
       onChanged();
@@ -239,13 +248,18 @@ export function ChoreDetailModal({
         <Section label="Assigned to">
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {members.map((m) => {
-              const sel = chore.assigneeSlug === m.slug;
+              const current = chore.assigneeSlugs ?? (chore.assigneeSlug && chore.assigneeSlug !== "unassigned" ? [chore.assigneeSlug] : []);
+              const sel = current.includes(m.slug);
               return (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => patch({ assigneeSlug: m.slug })}
+                  onClick={() => {
+                    const next = sel ? current.filter((s) => s !== m.slug) : [...current, m.slug];
+                    patch({ assigneeSlugs: next });
+                  }}
                   disabled={busy}
+                  aria-pressed={sel}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "4px 10px 4px 4px", borderRadius: 99,
@@ -256,6 +270,7 @@ export function ChoreDetailModal({
                 >
                   <Avatar who={m.slug} size={20} />
                   {m.name}
+                  {sel && <Icon name="check" color="var(--ink)" size={10} />}
                 </button>
               );
             })}

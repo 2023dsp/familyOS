@@ -111,10 +111,23 @@ model FamilyMember {
   householdId String?
   household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
-  chores      Chore[]         @relation("ChoreAssignee")
-  completions ChoreCompletion[]
+  chores         Chore[]         @relation("ChoreAssignee")
+  assignedChores ChoreAssignee[]
+  completions    ChoreCompletion[]
 
   @@unique([householdId, slug])
+}
+
+model ChoreAssignee {
+  id        String   @id @default(cuid())
+  choreId   String
+  chore     Chore    @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([choreId, memberId])
+  @@index([memberId])
 }
 
 model Category {
@@ -186,6 +199,7 @@ model Chore {
   household       Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   reminders       ChoreReminder[]
+  assignees       ChoreAssignee[]
 
   completions     ChoreCompletion[]
 
