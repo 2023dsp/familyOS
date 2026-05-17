@@ -59,7 +59,7 @@ type Template = {
 type Stats = {
   today: { done: number; total: number };
   week: { done: number; total: number };
-  perMember: { davide: number; luize: number };
+  perMember: Array<{ id: string; slug: string; name: string; color: string; count: number }>;
   streak: number;
   score: number;
 };
