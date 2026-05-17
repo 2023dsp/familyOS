@@ -46,11 +46,13 @@ function KidTile({
   task,
   color,
   done,
+  why,
   onTap
 }: {
   task: { id: string; title: string; icon: string };
   color: string;
   done: boolean;
+  why: string | null;
   onTap: () => void;
 }) {
   return (
@@ -61,18 +63,18 @@ function KidTile({
         position: "relative",
         background: done ? "#F1EADE" : softFromHex(color),
         borderRadius: 32,
-        padding: "24px 22px 22px",
+        padding: "28px 22px 24px",
         textAlign: "center",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 16,
+        gap: 14,
         boxShadow: done ? "none" : `0 6px 0 ${color}22, 0 12px 28px rgba(80,60,40,0.08)`,
         border: done ? "2px dashed #C8B89A" : "none",
         transition: "transform 0.1s, box-shadow 0.15s",
         cursor: "pointer",
         opacity: done ? 0.6 : 1,
-        minHeight: 200
+        minHeight: 260
       }}
       onMouseDown={(e) => {
         if (!done) e.currentTarget.style.transform = "scale(0.97)";
@@ -86,16 +88,16 @@ function KidTile({
     >
       <div
         style={{
-          width: 96,
-          height: 96,
-          borderRadius: 28,
+          width: 128,
+          height: 128,
+          borderRadius: 32,
           background: "white",
           display: "grid",
           placeItems: "center",
           boxShadow: done ? "none" : `inset 0 0 0 4px ${color}22`
         }}
       >
-        <Icon name={task.icon} color={color} accent={done ? "#C8B89A" : color + "88"} size={56} />
+        <Icon name={task.icon} color={color} accent={done ? "#C8B89A" : color + "88"} size={80} />
       </div>
       <div
         style={{
@@ -108,6 +110,20 @@ function KidTile({
       >
         {task.title}
       </div>
+      {why && (
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: done ? "#998870" : color,
+            lineHeight: 1.25,
+            fontStyle: "italic",
+            opacity: done ? 0.5 : 0.95
+          }}
+        >
+          {why}
+        </div>
+      )}
       {done && (
         <div
           style={{
@@ -262,6 +278,44 @@ function KidsModeInner() {
   const [chores, setChores] = useState<ApiChore[]>([]);
   const [burst, setBurst] = useState<{ msg: string; color: string } | null>(null);
   const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
+  const [whyByTitle, setWhyByTitle] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem("familyos-kids-why");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("familyos-kids-why", JSON.stringify(whyByTitle));
+    } catch {
+      /* ignore quota */
+    }
+  }, [whyByTitle]);
+
+  useEffect(() => {
+    const locale = typeof navigator !== "undefined" ? navigator.language : "en";
+    const seen = new Set<string>();
+    chores.forEach((c) => {
+      const key = c.title.trim().toLowerCase();
+      if (!key || seen.has(key) || whyByTitle[key]) return;
+      seen.add(key);
+      fetch("/api/kids/why", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: c.title, locale })
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((j) => {
+          if (j.why) setWhyByTitle((prev) => ({ ...prev, [key]: j.why }));
+        })
+        .catch(() => {});
+    });
+  }, [chores, whyByTitle]);
 
   useEffect(() => {
     if (kids.length > 0 && !activeKidSlug) setActiveKidSlug(kids[0].slug);
@@ -521,49 +575,66 @@ function KidsModeInner() {
       </div>
 
       <div
-        className="scroll"
+        className="scroll kids-grid-wrap"
         style={{
           flex: 1,
           padding: "8px 36px 36px",
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-          gap: 18,
-          gridAutoRows: "min-content",
+          display: "flex",
+          justifyContent: "center",
           position: "relative",
           zIndex: 2,
           overflowY: "auto"
         }}
       >
-        {kidChores.map((c) => {
-          const cat = categories.find((x) => x.id === c.category);
-          const color = cat?.color ?? kid.color;
-          return (
-            <KidTile
-              key={c.id}
-              task={{ id: c.id, title: c.title, icon: c.icon }}
-              color={color}
-              done={!!optimisticDone[c.id]}
-              onTap={() => complete(c.id, color, c.title)}
-            />
-          );
-        })}
-        {total === 0 && (
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              padding: 40,
-              textAlign: "center",
-              background: "rgba(255,255,255,0.5)",
-              borderRadius: 32,
-              border: "2px dashed #E0D2B8"
-            }}
-          >
-            <Icon name="sparkles" color={kid.color} size={48} />
-            <p style={{ fontSize: 18, fontWeight: 800, color: "#5C4F3F", marginTop: 12 }}>
-              No chores for {kid.name} today.
-            </p>
-          </div>
-        )}
+        <div
+          className="kids-grid"
+          style={{
+            display: "grid",
+            gap: 22,
+            gridAutoRows: "min-content",
+            width: "100%",
+            maxWidth: 1200
+          }}
+        >
+          {kidChores.map((c) => {
+            const cat = categories.find((x) => x.id === c.category);
+            const color = cat?.color ?? kid.color;
+            const key = c.title.trim().toLowerCase();
+            return (
+              <KidTile
+                key={c.id}
+                task={{ id: c.id, title: c.title, icon: c.icon }}
+                color={color}
+                done={!!optimisticDone[c.id]}
+                why={whyByTitle[key] ?? null}
+                onTap={() => complete(c.id, color, c.title)}
+              />
+            );
+          })}
+          {total === 0 && (
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                padding: 40,
+                textAlign: "center",
+                background: "rgba(255,255,255,0.5)",
+                borderRadius: 32,
+                border: "2px dashed #E0D2B8"
+              }}
+            >
+              <Icon name="sparkles" color={kid.color} size={48} />
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#5C4F3F", marginTop: 12 }}>
+                No chores for {kid.name} today.
+              </p>
+            </div>
+          )}
+        </div>
+        <style>{`
+          .kids-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+          @media (max-width: 1100px) { .kids-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+          @media (max-width: 760px)  { .kids-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; } }
+          @media (max-width: 420px)  { .kids-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+        `}</style>
       </div>
 
       {completed === total && total > 0 && (
