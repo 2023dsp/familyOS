@@ -196,6 +196,14 @@ model Chore {
   reminderAt      DateTime?  // legacy single reminder (kept for back-compat)
   reminderSentAt  DateTime?
 
+  // Purchase chores: an AI research agent fills researchResult with links.
+  isPurchase          Boolean   @default(false)
+  purchaseDescription String?
+  researchStatus      String?   // pending | running | done | error
+  researchResult      String?
+  researchError       String?
+  researchedAt        DateTime?
+
   householdId     String?
   household       Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
 

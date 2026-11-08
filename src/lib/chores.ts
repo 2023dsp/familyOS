@@ -5,6 +5,7 @@ import { sendToHousehold } from "./push";
 import { getActiveHouseholdId } from "./household";
 import { RuleSuggestionProvider } from "./suggest";
 import { dateAtTimeInTz, getHouseholdHMInTz } from "./timezone";
+import { startResearch } from "./purchase-research";
 import type { Chore, RecurrenceUnit } from "@prisma/client";
 
 const ruleSuggest = new RuleSuggestionProvider();
@@ -44,7 +45,10 @@ export const choreInputSchema = z.object({
   recurDaysOfWeek: z.string().max(60).nullable().optional(),
   recurDayOfMonth: z.number().int().min(1).max(28).nullable().optional(),
   important: z.boolean().optional(),
-  reminderAt: z.string().datetime().nullable().optional()
+  reminderAt: z.string().datetime().nullable().optional(),
+  isPurchase: z.boolean().optional(),
+  purchaseDescription: z.string().max(2000).nullable().optional(),
+  researchResult: z.string().max(20000).nullable().optional()
 });
 
 export type ChoreInput = z.infer<typeof choreInputSchema>;
@@ -77,6 +81,7 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
   const primaryId = ids[0] ?? null;
   const householdId = await getActiveHouseholdId();
   const enriched = autoEnrich(input);
+  if (input.isPurchase && (!input.icon || input.icon === "broom")) enriched.icon = "cart";
   const chore = await prisma.$transaction(async (tx) => {
     const created = await tx.chore.create({
       data: {
@@ -93,6 +98,8 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
         recurDaysOfWeek: input.recurDaysOfWeek ?? null,
         recurDayOfMonth: input.recurDayOfMonth ?? null,
         important: input.important ?? false,
+        isPurchase: input.isPurchase ?? false,
+        purchaseDescription: input.isPurchase ? input.purchaseDescription?.trim() || null : null,
         householdId
       }
     });
@@ -105,6 +112,7 @@ export async function createChore(input: ChoreInput): Promise<Chore> {
   });
   const tag = input.important ? "Important" : "New chore";
   notifyAsync(householdId, `+ ${tag}`, chore.title, `chore-create-${chore.id}`);
+  if (chore.isPurchase) await startResearch(chore.id);
   return chore;
 }
 
@@ -129,6 +137,9 @@ export async function updateChore(id: string, input: Partial<ChoreInput>): Promi
   if (input.recurDaysOfWeek !== undefined) data.recurDaysOfWeek = input.recurDaysOfWeek;
   if (input.recurDayOfMonth !== undefined) data.recurDayOfMonth = input.recurDayOfMonth;
   if (input.important !== undefined) data.important = input.important;
+  if (input.isPurchase !== undefined) data.isPurchase = input.isPurchase;
+  if (input.purchaseDescription !== undefined) data.purchaseDescription = input.purchaseDescription?.trim() || null;
+  if (input.researchResult !== undefined) data.researchResult = input.researchResult;
   if (input.reminderAt !== undefined) {
     data.reminderAt = input.reminderAt ? new Date(input.reminderAt) : null;
     data.reminderSentAt = null; // reset so reminder fires anew when changed

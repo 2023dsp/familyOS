@@ -16,6 +16,7 @@ import { CategoriesEditor } from "./CategoriesEditor";
 import { PushSubscribeCard } from "./PushSubscribeCard";
 import { NotificationScheduleCard } from "./NotificationScheduleCard";
 import { WeatherSettingsCard } from "./WeatherSettingsCard";
+import { PurchaseRulesCard } from "./PurchaseRulesCard";
 import { FamilyMembersCard } from "./FamilyMembersCard";
 import { HouseholdAdminCard, InvitesCard } from "./HouseholdAdminCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
@@ -1532,6 +1533,7 @@ type SettingsSectionKey =
   | "categories"
   | "notifications"
   | "weather"
+  | "purchases"
   | "calendar"
   | "account"
   | "integrations";
@@ -1541,6 +1543,7 @@ const SETTINGS_SECTIONS: Array<{ key: SettingsSectionKey; label: string; icon: s
   { key: "categories", label: "Categories", icon: "layers", desc: "Tags + colors" },
   { key: "notifications", label: "Notifications", icon: "clock", desc: "Push + daily digest" },
   { key: "weather", label: "Weather", icon: "sun", desc: "Location + forecast" },
+  { key: "purchases", label: "Purchases", icon: "cart", desc: "Rules for the research agent" },
   { key: "calendar", label: "Google Calendar", icon: "calendar", desc: "Sync events" },
   { key: "account", label: "Account", icon: "user", desc: "Password + session" },
   { key: "integrations", label: "Integrations", icon: "link", desc: "AI + other connectors" }
@@ -1579,6 +1582,8 @@ function Settings() {
         );
       case "weather":
         return <WeatherSettingsCard />;
+      case "purchases":
+        return <PurchaseRulesCard />;
       case "calendar":
         return <GoogleCalendarCard />;
       case "account":
@@ -1591,6 +1596,7 @@ function Settings() {
       case "integrations":
         return (
           <SettingsCard title="Integrations" icon="link">
+            <SettingsRow label="Purchase research (Claude)" desc="AI agent that researches products for purchase chores. Needs ANTHROPIC_API_KEY on the server." trailing={<span className="pill">Optional</span>} />
             <SettingsRow label="OpenAI suggestions" desc="Smart icon / category / recurrence guesses on chore titles. Falls back to local rules if OPENAI_API_KEY is unset." trailing={<span className="pill">Optional</span>} />
             <SettingsRow label="Web Push (VAPID)" desc="Configured server-side. See Notifications for per-device controls." trailing={<span className="pill">Configured</span>} />
           </SettingsCard>

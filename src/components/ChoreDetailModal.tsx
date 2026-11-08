@@ -11,6 +11,7 @@ import { useAssignableMembers } from "./FamilyMembersContext";
 // categories used in detail modal for editable category section
 import { formatRecurrence } from "../lib/recurrence";
 import type { ChoreRowData } from "./ChoreRow";
+import { PurchasePanel } from "./PurchasePanel";
 import type { RecurrenceUnit } from "@prisma/client";
 
 type LocalChore = ChoreRowData & { reminderAt?: string | null; notes?: string | null };
@@ -449,6 +450,8 @@ export function ChoreDetailModal({
             })}
           </div>
         </Section>
+
+        <PurchasePanel choreId={chore.id} onChanged={onChanged} />
 
         <Section label="Notes">
           <EditableNotes value={chore.notes ?? ""} disabled={busy} onSave={(v) => patch({ notes: v || null })} />

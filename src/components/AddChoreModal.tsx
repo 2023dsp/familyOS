@@ -89,6 +89,8 @@ export function AddChoreModal({
     prefill?.recurInterval != null && prefill?.recurUnit != null
   );
   const [notes, setNotes] = useState("");
+  const [isPurchase, setIsPurchase] = useState(false);
+  const [purchaseDesc, setPurchaseDesc] = useState("");
   const [important, setImportant] = useState(false);
   const [pendingReminders, setPendingReminders] = useState<PendingReminder[]>([]);
   const [addingReminder, setAddingReminder] = useState(false);
@@ -205,7 +207,9 @@ export function AddChoreModal({
             hasRecur && recurUnit === "week" && recurDaysOfWeek.length > 0
               ? recurDaysOfWeek.join(",")
               : undefined,
-          important
+          important,
+          isPurchase,
+          purchaseDescription: isPurchase ? purchaseDesc.trim() || null : null
         })
       });
       if (!res.ok) {
@@ -257,6 +261,40 @@ export function AddChoreModal({
             <Icon name="sparkles" color="var(--terracotta)" size={20} />
           </span>
           <VoiceButton onResult={(t) => { setText((prev) => (prev ? prev + " " : "") + t); setDismissed({}); }} />
+        </div>
+
+        {/* Purchase: AI agent researches products after save */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setIsPurchase((v) => !v)}
+            aria-pressed={isPurchase}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: isPurchase ? "var(--olive-soft)" : "rgba(0,0,0,0.04)",
+              border: isPurchase ? "1.5px solid var(--olive)" : "1.5px solid transparent",
+              color: isPurchase ? "var(--olive)" : "var(--ink-2)",
+              fontWeight: 700,
+              fontSize: 13,
+              alignSelf: "flex-start"
+            }}
+          >
+            <Icon name="cart" color={isPurchase ? "var(--olive)" : "var(--ink-3)"} size={16} />
+            {isPurchase ? "Purchase — AI will research it" : "This is a purchase"}
+          </button>
+          {isPurchase && (
+            <textarea
+              value={purchaseDesc}
+              onChange={(e) => setPurchaseDesc(e.target.value)}
+              placeholder="What are we looking for? e.g. headphones for Ellie (3y), for tablet in the car and plane, should last a few years"
+              className="input"
+              style={{ minHeight: 72, fontSize: 14, resize: "vertical", paddingTop: 12 }}
+            />
+          )}
         </div>
 
         {(suggestLoading || suggestion.icon || suggestion.category || suggestion.recurInterval || suggestion.priority || suggestion.dueHint) && (
