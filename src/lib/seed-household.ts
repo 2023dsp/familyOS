@@ -34,6 +34,31 @@ function slugify(s: string): string {
     .slice(0, 30) || "owner";
 }
 
+type Db = Pick<typeof prisma, "familyMember">;
+
+/**
+ * Make sure a household user also exists as an assignable FamilyMember
+ * (the "who" picker lists FamilyMembers, not accounts). Idempotent.
+ */
+export async function ensurePersonMember(db: Db, householdId: string, name: string): Promise<void> {
+  const slug = slugify(name);
+  const persons = await db.familyMember.count({ where: { householdId, isPerson: true } });
+  await db.familyMember.upsert({
+    where: { householdId_slug: { householdId, slug } },
+    update: {},
+    create: {
+      slug,
+      name,
+      initials: name.charAt(0).toUpperCase() || "?",
+      color: PALETTE[persons % PALETTE.length]!,
+      isPerson: true,
+      isChild: false,
+      sortOrder: persons,
+      householdId
+    }
+  });
+}
+
 /**
  * Seed a brand-new household with sensible defaults so its dashboard isn't empty.
  */

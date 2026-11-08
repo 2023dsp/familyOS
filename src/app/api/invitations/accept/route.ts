@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../../../lib/prisma";
 import { hashPasswordV2, verifyPasswordV2 } from "../../../../lib/passwords";
 import { createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "../../../../lib/auth";
+import { ensurePersonMember } from "../../../../lib/seed-household";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
       where: { id: inv.id },
       data: { acceptedAt: new Date() }
     });
+    const personName = parsed.data.name ?? existing?.name ?? email.split("@")[0]!;
+    await ensurePersonMember(tx, inv.householdId, personName);
   });
 
   const token = createSessionToken({ userId, householdId: inv.householdId });
