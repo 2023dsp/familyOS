@@ -76,7 +76,7 @@ export default function RegisterPage() {
             width: 64,
             height: 64,
             borderRadius: 18,
-            background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
+            background: "var(--terracotta)",
             boxShadow: "var(--shadow-lg)"
           }}
         >

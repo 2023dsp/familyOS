@@ -22,7 +22,7 @@ const DEFAULT_TEMPLATES = [
   { title: "Laundry", icon: "drop", category: "cleaning", priority: "medium" as const, defaultRecurInterval: 1, defaultRecurUnit: "week" as const }
 ];
 
-const PALETTE = ["#6F8AA8", "#D89AA0", "#3F4B3B", "#D9B36C", "#A85F40", "#6B8E5A", "#5C4F3F", "#D88A3A"];
+const PALETTE = ["#2F6FDB", "#C2477A", "#E0A31A", "#3E7C5A", "#7A4FD1", "#D9622B", "#2B9A8F", "#5A6B7A"];
 
 function slugify(s: string): string {
   return s

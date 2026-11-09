@@ -13,7 +13,7 @@ type Member = {
   isPerson: boolean;
 };
 
-const ADULT_PALETTE = ["#6F8AA8", "#D89AA0", "#3F4B3B", "#A85F40", "#5C4F3F", "#D88A3A"];
+const ADULT_PALETTE = ["#2F6FDB", "#C2477A", "#3E7C5A", "#7A4FD1", "#D9622B", "#2B9A8F"];
 const KID_PALETTE = ["#E59A89", "#7AA0C2", "#D9B36C", "#7DA08A", "#B086C2", "#8EB4C9"];
 
 type DraftMode = "adult" | "kid" | null;

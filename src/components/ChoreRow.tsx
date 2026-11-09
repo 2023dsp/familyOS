@@ -25,6 +25,7 @@ export type ChoreRowData = {
   important: boolean;
   reminderAt?: string | null;
   notes?: string | null;
+  isPurchase?: boolean;
 };
 
 function AvatarStack({ slugs, size }: { slugs: string[]; size: number }) {

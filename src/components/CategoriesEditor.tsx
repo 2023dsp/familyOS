@@ -48,7 +48,7 @@ export function CategoriesEditor() {
   const [open, setOpen] = useState(false);
   const [nLabel, setNLabel] = useState("");
   const [nIcon, setNIcon] = useState("layers");
-  const [nColor, setNColor] = useState("#C97B5B");
+  const [nColor, setNColor] = useState("#2F6FDB");
 
   async function load() {
     const res = await fetch("/api/categories", { cache: "no-store" });

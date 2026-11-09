@@ -2,85 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FamilyOS — Design tokens. Mirrors the Claude Design styles.css. */
+/* FamilyOS — design tokens, "Family board" direction (cool, per-person lanes).
+   Legacy token names are kept (terracotta = primary accent, olive = done/green)
+   so existing components restyle without renames. */
 :root {
-  --bg: #F2EAD8;
-  --bg-2: #EFE6D2;
-  --surface: #FAF5EA;
-  --surface-2: #E8DCC4;
-  --surface-3: #DFD0B4;
-  --line: rgba(60, 45, 25, 0.08);
-  --line-2: rgba(60, 45, 25, 0.14);
+  --bg: #EEF1F3;
+  --bg-2: #E6EAEE;
+  --surface: #FFFFFF;
+  --surface-2: #E9EDF1;
+  --surface-3: #DCE2E8;
+  --line: rgba(22, 34, 46, 0.08);
+  --line-2: rgba(22, 34, 46, 0.15);
 
-  --ink: #2B2620;
-  --ink-2: #5C4F3F;
-  --ink-3: #8A7A65;
-  --ink-4: #B5A589;
+  --ink: #16222E;
+  --ink-2: #3E4D5C;
+  --ink-3: #5A6B7A;
+  --ink-4: #9AA8B4;
 
-  --terracotta: #C97B5B;
-  --terracotta-soft: #E8C2AC;
-  --terracotta-deep: #A85F40;
+  --terracotta: #2F6FDB;
+  --terracotta-soft: #DCE7FB;
+  --terracotta-deep: #1F55B3;
 
-  --olive: #3F4B3B;
-  --olive-soft: #B5C2A6;
+  --olive: #3E7C5A;
+  --olive-soft: #D3E8DB;
 
-  --sand: #D9B36C;
-  --sand-soft: #F0DEB3;
+  --sand: #E0A31A;
+  --sand-soft: #FCEFCB;
 
-  --blue: #6F8AA8;
-  --blue-soft: #C5D2DF;
+  --blue: #4A7BB7;
+  --blue-soft: #D6E2F2;
 
-  --rose: #D89AA0;
-  --rose-soft: #F1D6D9;
+  --rose: #C2477A;
+  --rose-soft: #F6D9E5;
 
-  --success: #6B8E5A;
-  --warn: #D89A4F;
-  --danger: #B85A45;
+  --success: #3E7C5A;
+  --warn: #D98B1F;
+  --danger: #C2412D;
 
-  --davide: #6F8AA8;
-  --davide-soft: #D6E0EB;
-  --luize: #D89AA0;
-  --luize-soft: #F4DCDF;
+  --davide: #2F6FDB;
+  --davide-soft: #DCE7FB;
+  --luize: #C2477A;
+  --luize-soft: #F6D9E5;
 
-  --shadow-sm: 0 1px 2px rgba(80, 60, 40, 0.06);
-  --shadow: 0 2px 12px rgba(80, 60, 40, 0.07), 0 1px 2px rgba(80, 60, 40, 0.04);
-  --shadow-lg: 0 12px 36px rgba(80, 60, 40, 0.12), 0 4px 10px rgba(80, 60, 40, 0.05);
-  --shadow-xl: 0 28px 60px rgba(80, 60, 40, 0.18), 0 8px 20px rgba(80, 60, 40, 0.08);
+  --accent-glow: rgba(47, 111, 219, 0.28);
 
-  --tod-tint: linear-gradient(180deg, rgba(245, 200, 140, 0.18), rgba(245, 200, 140, 0) 50%);
+  --shadow-sm: 0 1px 2px rgba(22, 34, 46, 0.06);
+  --shadow: 0 2px 12px rgba(22, 34, 46, 0.07), 0 1px 2px rgba(22, 34, 46, 0.04);
+  --shadow-lg: 0 12px 36px rgba(22, 34, 46, 0.12), 0 4px 10px rgba(22, 34, 46, 0.05);
+  --shadow-xl: 0 28px 60px rgba(22, 34, 46, 0.18), 0 8px 20px rgba(22, 34, 46, 0.08);
+
+  --tod-tint: none;
 }
 
 html.theme-dark,
 html[data-theme="dark"] {
-  --bg: #1B1814;
-  --bg-2: #221E18;
-  --surface: #28231C;
-  --surface-2: #322C22;
-  --surface-3: #3D3528;
-  --line: rgba(245, 230, 200, 0.08);
-  --line-2: rgba(245, 230, 200, 0.14);
-  --ink: #F1E8D6;
-  --ink-2: #C7B89E;
-  --ink-3: #998870;
-  --ink-4: #6E6250;
-  --terracotta-soft: #4A3024;
-  --olive-soft: #2F3A2C;
-  --sand-soft: #4A3D24;
-  --davide-soft: #2D3A48;
-  --luize-soft: #4A3236;
+  --bg: #10161D;
+  --bg-2: #141B23;
+  --surface: #1A232D;
+  --surface-2: #222D39;
+  --surface-3: #2C3946;
+  --line: rgba(220, 232, 245, 0.08);
+  --line-2: rgba(220, 232, 245, 0.15);
+  --ink: #E8EEF4;
+  --ink-2: #B5C2CF;
+  --ink-3: #8595A5;
+  --ink-4: #5B6979;
+  --terracotta: #5B92F0;
+  --terracotta-soft: #1E3256;
+  --terracotta-deep: #9DBCFF;
+  --olive: #5FAE82;
+  --olive-soft: #1F3A2C;
+  --sand-soft: #3D3218;
+  --blue-soft: #1F3048;
+  --rose-soft: #44263A;
+  --davide-soft: #1E3256;
+  --luize-soft: #44263A;
+  --accent-glow: rgba(91, 146, 240, 0.3);
+  color-scheme: dark;
 }
 
-.tod-morning { --tod-tint: linear-gradient(180deg, rgba(245, 200, 140, 0.22), rgba(245, 200, 140, 0) 50%); }
-.tod-midday  { --tod-tint: linear-gradient(180deg, rgba(255, 250, 230, 0.18), rgba(255, 250, 230, 0) 60%); }
-.tod-evening { --tod-tint: linear-gradient(180deg, rgba(220, 130, 90, 0.22), rgba(180, 90, 70, 0.08) 60%); }
-.tod-night   { --tod-tint: linear-gradient(180deg, rgba(60, 70, 110, 0.32), rgba(40, 50, 90, 0.10) 60%); }
+
+
+
+
 
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
-  font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -89,7 +100,7 @@ html, body {
 }
 
 body {
-  background-image: var(--tod-tint), radial-gradient(at 20% 10%, rgba(217, 179, 108, 0.08), transparent 60%);
+  background-image: none;
   background-attachment: fixed;
 }
 
@@ -155,7 +166,7 @@ input, textarea, select { font-family: inherit; }
 .btn-primary {
   background: var(--terracotta);
   color: white;
-  box-shadow: 0 4px 12px rgba(201, 123, 91, 0.28);
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 .btn-primary:hover { background: var(--terracotta-deep); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -178,7 +189,7 @@ input, textarea, select { font-family: inherit; }
 }
 .input:focus {
   border-color: var(--terracotta);
-  box-shadow: 0 0 0 4px rgba(201, 123, 91, 0.12);
+  box-shadow: 0 0 0 4px var(--terracotta-soft);
 }
 .input::placeholder { color: var(--ink-4); }
 

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "./Icon";
 import { Avatar } from "./Avatar";
-import { Ring, Progress } from "./Ring";
 import { ChoreRow, type ChoreRowData } from "./ChoreRow";
 import { AddChoreModal, type AddChorePrefill } from "./AddChoreModal";
 import { AddEventModal, type ExistingEvent } from "./AddEventModal";
@@ -22,18 +21,11 @@ import { HouseholdAdminCard, InvitesCard } from "./HouseholdAdminCard";
 import { CalendarView, type CalEvent } from "./CalendarView";
 import { PullToRefresh } from "./PullToRefresh";
 import { WeatherCard } from "./WeatherCard";
+import { PersonLanes, WeekStrip } from "./PersonLanes";
 import { type AssigneeSlug, type PriorityKey, type Category } from "../lib/catalog";
 import { CategoriesProvider, useCategories } from "./CategoriesContext";
 import { FamilyMembersProvider, useFamilyMembers, type Member } from "./FamilyMembersContext";
 
-function deriveMySlug(me: { user: { name: string | null; email: string } | null } | null, members: Member[]): string | null {
-  if (!me?.user) return null;
-  const base = (me.user.name ?? me.user.email.split("@")[0] ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const byName = members.find((m) => m.slug === base);
-  if (byName) return byName.slug;
-  const first = members.find((m) => m.isPerson);
-  return first?.slug ?? null;
-}
 import { helloFor, isSameDay, startOfDay } from "../lib/date";
 import { formatRecurrence } from "../lib/recurrence";
 import type { RecurrenceUnit } from "@prisma/client";
@@ -56,6 +48,7 @@ type ApiChore = {
   completedAt: string | null;
   important: boolean;
   reminderAt: string | null;
+  isPurchase?: boolean;
 };
 
 type Template = {
@@ -101,7 +94,8 @@ function toRowData(c: ApiChore): ChoreRowData {
     done: c.status === "completed",
     important: !!c.important,
     reminderAt: c.reminderAt ?? null,
-    notes: c.notes ?? null
+    notes: c.notes ?? null,
+    isPurchase: !!c.isPurchase
   };
 }
 
@@ -138,7 +132,6 @@ export function Dashboard() {
       return next;
     });
   }, []);
-  const [filter, setFilter] = useState<"today" | "upcoming" | "mine" | "all">("today");
   const [isWide, setIsWide] = useState(false);
   const router = useRouter();
 
@@ -291,22 +284,6 @@ export function Dashboard() {
     [chores]
   );
 
-  const mySlug = useMemo(() => deriveMySlug(me, familyMembers), [me, familyMembers]);
-
-  const filtered = useMemo(() => {
-    const base = chores.filter((c) => c.status !== "archived");
-    if (filter === "today") return base.filter((c) => c.dueDate && isSameDay(new Date(c.dueDate), today));
-    if (filter === "upcoming") return base.filter((c) => c.dueDate && new Date(c.dueDate) > startOfDay(today));
-    if (filter === "mine") {
-      if (!mySlug) return [] as ApiChore[];
-      return base.filter((c) => {
-        if (c.assignee?.slug === mySlug) return true;
-        return (c.assignees ?? []).some((a) => a.member.slug === mySlug);
-      });
-    }
-    return base;
-  }, [chores, filter]);
-
   async function toggle(id: string, done: boolean) {
     setChores((cs) => cs.map((c) => (c.id === id ? { ...c, status: done ? "completed" : "active" } : c)));
     await fetch(`/api/chores/${id}/complete`, {
@@ -314,27 +291,6 @@ export function Dashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ undo: !done })
     });
-    load();
-  }
-
-  async function markAllDoneToday() {
-    const ids = chores
-      .filter((c) => c.status === "active" && c.dueDate && isSameDay(new Date(c.dueDate), new Date()))
-      .map((c) => c.id);
-    if (ids.length === 0) return;
-    if (!confirm(`Mark ${ids.length} chore${ids.length === 1 ? "" : "s"} as done?`)) return;
-    setChores((cs) =>
-      cs.map((c) => (ids.includes(c.id) ? { ...c, status: "completed" as const } : c))
-    );
-    await Promise.all(
-      ids.map((id) =>
-        fetch(`/api/chores/${id}/complete`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({})
-        })
-      )
-    );
     load();
   }
 
@@ -360,13 +316,12 @@ export function Dashboard() {
     <CategoriesProvider value={categories}>
     <FamilyMembersProvider value={familyMembers}>
     <div className={`tod-${hello.tod}`} style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <Header dateLabel={dateLabel} onLogout={logout} householdName={me?.household?.name ?? "Family"} showAdmin={!!me?.isSuperAdmin} />
+      <Header dateLabel={dateLabel} onLogout={logout} householdName={me?.household?.name ?? "Family"} showAdmin={!!me?.isSuperAdmin} nav={isWide ? { active: tab, setActive: setTab, onAdd: () => setAdding({}) } : null} />
       <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
-        {isWide && <SideNav active={tab} setActive={setTab} onAdd={() => setAdding({})} />}
         <PullToRefresh
           onRefresh={load}
           className="scroll"
-          style={{ flex: 1, padding: isWide ? "16px 36px 60px" : "12px 16px 76px", minWidth: 0 }}
+          style={{ flex: 1, padding: isWide ? "24px 36px 60px" : "12px 16px 84px", minWidth: 0 }}
         >
           {tab === "home" && (
             <Home
@@ -374,18 +329,11 @@ export function Dashboard() {
               hello={hello}
               dateLabel={dateLabel}
               stats={stats}
-              chores={chores.map(toRowData)}
-              todayChores={todayChores.map(toRowData)}
-              mySlug={mySlug}
-              completedToday={completedToday}
+              chores={chores.filter((c) => c.status !== "archived").map(toRowData)}
               remainingToday={remainingToday}
               upcoming={upcoming.map(toRowData)}
               recurringNext={recurringNext}
-              filter={filter}
-              setFilter={setFilter}
-              filtered={filtered.map(toRowData)}
               events={events}
-              householdName={me?.household?.name ?? (process.env.NEXT_PUBLIC_FAMILY_NAMES ?? "Family")}
               importantTasks={importantTasks.map(toRowData)}
               loading={loading}
               onToggle={toggle}
@@ -403,7 +351,6 @@ export function Dashboard() {
                   persona: e.persona ?? null
                 })
               }
-              onMarkAllDone={markAllDoneToday}
             />
           )}
           {tab === "calendar" && <CalendarView events={events} onChanged={load} isWide={isWide} />}
@@ -456,7 +403,30 @@ export function Dashboard() {
   );
 }
 
-function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: string; onLogout: () => void; householdName: string; showAdmin: boolean }) {
+type TabKey = "home" | "calendar" | "all" | "templates" | "settings";
+type HeaderNav = { active: TabKey; setActive: (k: TabKey) => void; onAdd: () => void };
+
+const TOP_NAV: Array<{ id: TabKey; label: string }> = [
+  { id: "home", label: "Today" },
+  { id: "calendar", label: "Calendar" },
+  { id: "all", label: "All chores" },
+  { id: "templates", label: "Templates" },
+  { id: "settings", label: "Settings" }
+];
+
+function Header({
+  dateLabel,
+  onLogout,
+  householdName,
+  showAdmin,
+  nav
+}: {
+  dateLabel: string;
+  onLogout: () => void;
+  householdName: string;
+  showAdmin: boolean;
+  nav: HeaderNav | null;
+}) {
   const members = useFamilyMembers();
   const hasKids = useMemo(() => members.some((m) => m.isPerson && m.isChild), [members]);
   const [isMobile, setIsMobile] = useState(false);
@@ -481,8 +451,10 @@ function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: 
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: isMobile ? "14px 16px 8px" : "20px 24px 12px",
-        gap: 12
+        padding: isMobile ? "14px 16px 8px" : nav ? "12px 28px" : "20px 24px 12px",
+        gap: 12,
+        background: nav ? "var(--surface)" : "transparent",
+        borderBottom: nav ? "1px solid var(--line)" : "none"
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -491,7 +463,7 @@ function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: 
             width: isMobile ? 38 : 44,
             height: isMobile ? 38 : 44,
             borderRadius: 12,
-            background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
+            background: "var(--terracotta)",
             display: "grid",
             placeItems: "center",
             boxShadow: "var(--shadow)",
@@ -507,8 +479,37 @@ function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: 
           </p>
         </div>
       </div>
+      {nav && (
+        <nav aria-label="Main" style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, marginLeft: 24 }}>
+          {TOP_NAV.map((it) => {
+            const sel = nav.active === it.id;
+            return (
+              <button
+                key={it.id}
+                type="button"
+                onClick={() => nav.setActive(it.id)}
+                aria-current={sel ? "page" : undefined}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 10,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: sel ? "var(--ink)" : "var(--ink-3)",
+                  background: sel ? "var(--surface-2)" : "transparent",
+                  boxShadow: sel ? "inset 0 -2px 0 var(--terracotta)" : "none"
+                }}
+              >
+                {it.label}
+              </button>
+            );
+          })}
+          <button type="button" onClick={nav.onAdd} className="btn btn-primary" style={{ marginLeft: 8, padding: "8px 14px", fontSize: 13 }}>
+            <Icon name="plus" color="white" size={14} /> New
+          </button>
+        </nav>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
-        {!isMobile && (
+        {!isMobile && !nav && (
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--olive)" }} />
             {dateLabel}
@@ -652,100 +653,6 @@ function Header({ dateLabel, onLogout, householdName, showAdmin }: { dateLabel: 
   );
 }
 
-function SideNav({
-  active,
-  setActive,
-  onAdd
-}: {
-  active: string;
-  setActive: (k: "home" | "calendar" | "all" | "templates" | "settings") => void;
-  onAdd: () => void;
-}) {
-  const items: Array<{ id: "home" | "calendar" | "all" | "templates" | "settings"; icon: string; label: string }> = [
-    { id: "home", icon: "home", label: "Home" },
-    { id: "calendar", icon: "calendar", label: "Calendar" },
-    { id: "all", icon: "archive", label: "All" },
-    { id: "templates", icon: "layers", label: "Templates" },
-    { id: "settings", icon: "settings", label: "Settings" }
-  ];
-  return (
-    <nav
-      style={{
-        width: 96,
-        padding: "8px 16px 28px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 16,
-        flexShrink: 0,
-        height: "100%",
-        overflowY: "auto"
-      }}
-    >
-      <button
-        onClick={onAdd}
-        type="button"
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 22,
-          background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
-          color: "white",
-          display: "grid",
-          placeItems: "center",
-          boxShadow: "0 8px 22px rgba(201,123,91,0.35)"
-        }}
-        aria-label="Add chore"
-      >
-        <Icon name="plus" color="white" size={28} />
-      </button>
-      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-        {items.map((it) => {
-          const sel = active === it.id;
-          return (
-            <button
-              key={it.id}
-              onClick={() => setActive(it.id)}
-              type="button"
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 18,
-                background: sel ? "var(--surface)" : "transparent",
-                color: sel ? "var(--terracotta)" : "var(--ink-3)",
-                display: "grid",
-                placeItems: "center",
-                boxShadow: sel ? "var(--shadow-sm)" : "none",
-                position: "relative",
-                transition: "all 0.15s"
-              }}
-            >
-              <Icon
-                name={it.icon}
-                color={sel ? "var(--terracotta)" : "var(--ink-3)"}
-                accent={sel ? "var(--terracotta-deep)" : "var(--ink-4)"}
-                size={26}
-              />
-              <span
-                style={{
-                  position: "absolute",
-                  bottom: 4,
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: 0.08,
-                  textTransform: "uppercase"
-                }}
-              >
-                {it.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
-}
-
 function MobileTabBar({
   active,
   setActive,
@@ -769,7 +676,8 @@ function MobileTabBar({
         left: 0,
         right: 0,
         padding: "8px 12px calc(env(safe-area-inset-bottom, 0px) + 4px)",
-        background: "linear-gradient(to top, var(--surface) 70%, transparent)",
+        background: "var(--surface)",
+        borderTop: "1px solid var(--line)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-around",
@@ -786,11 +694,11 @@ function MobileTabBar({
           width: 54,
           height: 54,
           borderRadius: 18,
-          background: "linear-gradient(135deg, var(--terracotta), var(--terracotta-deep))",
+          background: "var(--terracotta)",
           color: "white",
           display: "grid",
           placeItems: "center",
-          boxShadow: "0 6px 16px rgba(201,123,91,0.4)",
+          boxShadow: "0 6px 16px var(--accent-glow)",
           marginTop: -18
         }}
         aria-label="Add chore"
@@ -831,17 +739,10 @@ type HomeProps = {
   dateLabel: string;
   stats: Stats | null;
   chores: ChoreRowData[];
-  todayChores: ChoreRowData[];
-  mySlug: string | null;
-  completedToday: number;
   remainingToday: number;
   upcoming: ChoreRowData[];
   recurringNext: ApiChore[];
-  filter: "today" | "upcoming" | "mine" | "all";
-  setFilter: (v: HomeProps["filter"]) => void;
-  filtered: ChoreRowData[];
   events: CalEvent[];
-  householdName: string;
   importantTasks: ChoreRowData[];
   loading: boolean;
   onToggle: (id: string, done: boolean) => void;
@@ -849,350 +750,121 @@ type HomeProps = {
   onAdd: () => void;
   onToggleImportant: (id: string, next: boolean) => void;
   onEventClick: (e: CalEvent) => void;
-  onMarkAllDone: () => void;
 };
 
+/** Home = the family board: a week strip and one lane per person for the picked day. */
 function Home(p: HomeProps) {
-  return p.isWide ? <TabletHome {...p} /> : <MobileHome {...p} />;
-}
+  const [day, setDay] = useState<Date>(() => startOfDay(new Date()));
+  const isToday = isSameDay(day, new Date());
+  const openThatDay = useMemo(
+    () => p.chores.filter((c) => !c.done && c.dueDate && isSameDay(new Date(c.dueDate), day)).length,
+    [p.chores, day]
+  );
+  const dayLabel = isToday ? "Today" : day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const summary = isToday
+    ? p.remainingToday > 0
+      ? `${p.remainingToday} left today`
+      : "All done for today"
+    : openThatDay > 0
+      ? `${openThatDay} planned`
+      : "Nothing planned";
 
-type TodayView = "all" | "mine" | "adults";
+  const lanes = p.loading && p.chores.length === 0 ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <SkeletonRow dense />
+      <SkeletonRow dense />
+    </div>
+  ) : (
+    <PersonLanes chores={p.chores} day={day} columns={p.isWide} onToggle={p.onToggle} onOpen={p.onOpen} />
+  );
 
-function TabletHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, mySlug, completedToday, remainingToday, upcoming, recurringNext, importantTasks, loading, onToggle, onOpen, onAdd, onToggleImportant } = p;
-  const members = useFamilyMembers();
-  const kidSlugs = useMemo(() => new Set(members.filter((m) => m.isPerson && m.isChild).map((m) => m.slug)), [members]);
-  const hasKids = kidSlugs.size > 0;
-  // Default to "adults" when kids exist (kid chores live in /kids anyway and just distract here).
-  // Members load async, so hasKids starts false — bump the default once they arrive,
-  // unless the user already touched the toggle.
-  const [todayView, setTodayView] = useState<TodayView>("all");
-  const [todayViewTouched, setTodayViewTouched] = useState(false);
-  useEffect(() => {
-    if (todayViewTouched) return;
-    setTodayView(hasKids ? "adults" : "all");
-  }, [hasKids, todayViewTouched]);
-  const pickTodayView = useCallback((next: TodayView) => {
-    setTodayViewTouched(true);
-    setTodayView(next);
-  }, []);
-  const visibleToday = useMemo(() => {
-    return todayChores.filter((c) => {
-      const slugs = c.assigneeSlugs && c.assigneeSlugs.length > 0 ? c.assigneeSlugs : [c.assigneeSlug];
-      if (todayView === "mine") {
-        if (!mySlug) return true;
-        return slugs.includes(mySlug);
-      }
-      if (todayView === "adults") {
-        // Hide only if EVERY assignee is a kid (kid-only chores).
-        return slugs.some((s) => !kidSlugs.has(s));
-      }
-      return true;
-    });
-  }, [todayChores, todayView, mySlug, kidSlugs]);
-  const visibleDone = visibleToday.filter((c) => c.done).length;
-  const visibleTotal = visibleToday.length;
-  const visibleRemaining = visibleTotal - visibleDone;
-  const week = stats?.week ?? { done: 0, total: 0 };
-  const score = stats?.score ?? 0;
-  const streak = stats?.streak ?? 0;
+  const important = p.importantTasks.length > 0 && (
+    <div className="card" style={{ padding: p.isWide ? 18 : 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <Icon name="star" color="var(--sand)" size={18} />
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Important right now</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {p.importantTasks.map((c) => (
+          <ChoreRow key={c.id} chore={c} onToggle={p.onToggle} onOpen={p.onOpen} onToggleImportant={p.onToggleImportant} dense />
+        ))}
+      </div>
+    </div>
+  );
+
+  const repeats = (
+    <div className="card" style={{ padding: p.isWide ? 18 : 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Repeats</h2>
+        <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Auto-scheduled</span>
+      </div>
+      <RecurringList rows={p.isWide ? p.recurringNext.slice(0, 8) : p.recurringNext} dense />
+    </div>
+  );
+
+  if (!p.isWide) {
+    return (
+      <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>{dayLabel}</h1>
+          <span className="muted" style={{ fontSize: 13, fontWeight: 600, textAlign: "right" }}>{summary}</span>
+        </div>
+        <WeekStrip chores={p.chores} selected={day} onSelect={setDay} />
+        {lanes}
+        {important}
+        <WeatherCard compact />
+        {repeats}
+      </div>
+    );
+  }
+
+  const week = p.stats?.week ?? { done: 0, total: 0 };
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", fontSize: 13 }}>
-            <Icon name={hello.emoji} color="var(--sand)" size={18} /> {dateLabel}
-          </div>
-          <h1 style={{ margin: "4px 0 6px", fontSize: 40, fontWeight: 800, letterSpacing: -0.02 }}>
-            {hello.greeting}, <span style={{ color: "var(--terracotta)" }}>{p.householdName}</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: "var(--ink-3)", fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", fontSize: 12 }}>{p.dateLabel}</div>
+          <h1 style={{ margin: "2px 0 4px", fontSize: 36, fontWeight: 800, letterSpacing: "-0.02em" }}>
+            {isToday ? `${p.hello.greeting}` : dayLabel}
           </h1>
-          <div style={{ color: "var(--ink-3)", fontSize: 15, fontWeight: 600 }}>
-            {visibleRemaining > 0 ? `${visibleRemaining} chores left today` : "All done — nice."}
+          <div className="muted" style={{ fontSize: 15, fontWeight: 600 }}>
+            {summary} · this week {week.done}/{week.total} done
           </div>
         </div>
-        <button onClick={onAdd} className="btn btn-primary" style={{ padding: "14px 22px", fontSize: 15, borderRadius: 20 }} type="button">
+        <button onClick={p.onAdd} className="btn btn-primary" style={{ padding: "12px 20px", fontSize: 15 }} type="button">
           <Icon name="plus" color="white" size={18} /> Add chore
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 14 }}>
-        <div className="card" style={{ background: "linear-gradient(135deg, var(--surface), var(--bg-2))" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Today</span>
-            <span className="pill" style={{ background: "var(--olive-soft)", color: "var(--olive)" }}>
-              <Icon name="check" color="var(--olive)" size={12} /> {visibleDone}/{visibleTotal}
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <Ring value={visibleDone} max={visibleTotal || 1} size={96} stroke={10} color="var(--olive)" label={`${visibleDone}/${visibleTotal}`} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1 }}>
-                {visibleRemaining > 0 ? `${visibleRemaining} to go` : "All done."}
-              </div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                {remainingToday > 0 ? "After coffee?" : "Home in order."}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <WeatherCard compact />
-
-        <div className="card">
-          <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>This week</span>
-          <div style={{ fontSize: 30, fontWeight: 800, marginTop: 10, lineHeight: 1 }}>
-            {week.done}
-            <span className="muted" style={{ fontSize: 16, fontWeight: 700 }}> / {week.total}</span>
-          </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>chores completed</div>
-          <div style={{ marginTop: 14 }}>
-            <Progress value={week.done} max={week.total || 1} color="var(--terracotta)" height={10} />
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12, fontSize: 12, fontWeight: 700 }}>
-            {stats?.perMember && stats.perMember.length > 0 ? (
-              stats.perMember.slice(0, 4).map((m) => (
-                <span key={m.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 18, height: 18, borderRadius: 99, background: m.color, color: "white", display: "grid", placeItems: "center", fontSize: 10, fontWeight: 800 }}>
-                    {m.name.charAt(0).toUpperCase()}
-                  </span>
-                  {m.name} · {m.count}
-                </span>
-              ))
-            ) : (
-              <span className="muted" style={{ fontSize: 12 }}>No completions yet</span>
-            )}
-          </div>
-        </div>
-
-        <div className="card" style={{ background: "linear-gradient(160deg, var(--terracotta-soft), var(--surface))" }}>
-          <span className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.08 }}>Household score</span>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 10 }}>
-            <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, color: "var(--terracotta-deep)" }}>{score}</span>
-            <span className="muted" style={{ fontSize: 13, fontWeight: 700 }}>/ 100</span>
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
-            <Icon name="fire" color="var(--terracotta)" size={18} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--terracotta-deep)" }}>
-              {streak > 0 ? `${streak}-day streak` : "Start a streak today"}
-            </span>
-          </div>
-        </div>
+      <div style={{ maxWidth: 620 }}>
+        <WeekStrip chores={p.chores} selected={day} onSelect={setDay} />
       </div>
 
-      {(importantTasks.length > 0 || loading) && (
-        <div className="card" style={{ background: "linear-gradient(135deg, var(--terracotta-soft) 0%, var(--surface) 70%)", borderLeft: "6px solid var(--terracotta)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14, alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Icon name="sparkles" color="var(--terracotta-deep)" size={22} />
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--terracotta-deep)" }}>Important right now</h2>
-            </div>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Big decisions · pin from any chore</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {loading && importantTasks.length === 0 && <SkeletonRow />}
-            {!loading && importantTasks.length === 0 && (
-              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing pinned. Pin chores from their detail view (the star button) to flag big decisions like &quot;School choice for Ellie&quot;.</p>
-            )}
-            {importantTasks.map((c) => (
-              <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} />
-            ))}
-          </div>
-        </div>
-      )}
+      {lanes}
+      {important}
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, alignItems: "stretch" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Today&apos;s chores</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ display: "flex", gap: 4, background: "var(--surface-2)", padding: 4, borderRadius: 99 }}>
-                  {(
-                    [
-                      hasKids ? { key: "adults" as TodayView, label: "Adults" } : null,
-                      { key: "all" as TodayView, label: "All" },
-                      mySlug ? { key: "mine" as TodayView, label: "Mine" } : null
-                    ].filter(Boolean) as Array<{ key: TodayView; label: string }>
-                  ).map((opt) => {
-                    const sel = todayView === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => pickTodayView(opt.key)}
-                        style={{
-                          padding: "5px 14px",
-                          borderRadius: 99,
-                          background: sel ? "var(--surface)" : "transparent",
-                          color: sel ? "var(--ink)" : "var(--ink-3)",
-                          fontWeight: 700,
-                          fontSize: 12,
-                          boxShadow: sel ? "var(--shadow-sm)" : "none"
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {visibleToday.some((c) => !c.done) ? (
-                  <button
-                    type="button"
-                    onClick={p.onMarkAllDone}
-                    className="btn btn-ghost"
-                    style={{ padding: "6px 12px", fontSize: 12 }}
-                  >
-                    <Icon name="check" color="var(--olive)" size={14} /> Mark all done
-                  </button>
-                ) : (
-                  <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Tap circle · row to open</span>
-                )}
-              </div>
-            </div>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, minWidth: 0 }}>
+          <div className="card" style={{ padding: 18 }}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Coming up</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {loading && visibleToday.length === 0 && (
-                <>
-                  <SkeletonRow />
-                  <SkeletonRow />
-                </>
-              )}
-              {!loading && visibleToday.length === 0 && (
-                <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
-                  <Icon name="trophy" color="var(--sand)" size={32} />
-                  <p style={{ margin: "8px 0 0", fontWeight: 700 }}>
-                    {todayView === "mine"
-                      ? "Nothing of yours left today."
-                      : todayView === "adults"
-                        ? "No adult chores today. Kids ones live in Kids Mode."
-                        : "Nothing left for today. The home is sorted."}
-                  </p>
-                </div>
-              )}
-              {visibleToday.map((c) => (
-                <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
+              {p.upcoming.length === 0 && <p className="muted" style={{ fontSize: 13, margin: 0 }}>Nothing scheduled yet.</p>}
+              {p.upcoming.slice(0, 5).map((c) => (
+                <ChoreRow key={c.id} chore={c} onToggle={p.onToggle} onOpen={p.onOpen} onToggleImportant={p.onToggleImportant} dense />
               ))}
             </div>
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div className="card">
-              <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Coming up</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {upcoming.length === 0 && <p className="muted" style={{ fontSize: 13 }}>Nothing scheduled yet.</p>}
-                {upcoming.slice(0, 4).map((c) => (
-                  <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
-                ))}
-              </div>
-            </div>
-            <div className="card" style={{ background: "var(--bg-2)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Repeats</h2>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Auto</span>
-              </div>
-              <RecurringList rows={recurringNext.slice(0, 8)} dense />
-            </div>
-          </div>
+          {repeats}
         </div>
-
-        <WhatsOnCard
-          events={p.events}
-          chores={p.chores}
-          onEventClick={p.onEventClick}
-          onChoreOpen={p.onOpen}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+          <WeatherCard compact />
+          <WhatsOnCard events={p.events} chores={p.chores} onEventClick={p.onEventClick} onChoreOpen={p.onOpen} />
+        </div>
       </div>
     </div>
   );
 }
 
-function MobileHome(p: HomeProps) {
-  const { hello, dateLabel, stats, todayChores, completedToday, remainingToday, recurringNext, filter, setFilter, filtered, loading, onToggle, onOpen, onToggleImportant } = p;
-  return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-3)", fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", fontSize: 11 }}>
-          <Icon name={hello.emoji} color="var(--sand)" size={14} /> {dateLabel}
-        </div>
-        <h1 style={{ margin: "4px 0 2px", fontSize: 26, fontWeight: 800 }}>{hello.greeting}.</h1>
-        <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 13 }}>
-          {remainingToday > 0 ? `${remainingToday} chores left today` : "Nothing left — nice."}
-        </p>
-      </div>
-
-      <WeatherCard compact />
-
-      <div className="card" style={{ padding: 18, background: "linear-gradient(135deg, var(--terracotta-soft), var(--surface))" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", color: "var(--terracotta-deep)" }}>Today</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "var(--terracotta-deep)" }}>
-            <Icon name="fire" color="var(--terracotta)" size={14} /> {stats?.streak ?? 0}-day streak
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          <Ring value={completedToday} max={todayChores.length || 1} size={72} stroke={8} color="var(--terracotta-deep)" label={`${completedToday}/${todayChores.length}`} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1.2 }}>
-              {remainingToday > 0 ? `${remainingToday} to go` : "Done for today!"}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--terracotta-deep)", marginTop: 2 }}>
-              Score · {stats?.score ?? 0} / 100
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, overflowX: "auto" }} className="no-scrollbar">
-        {(["today", "upcoming", "mine", "all"] as const).map((t) => {
-          const sel = filter === t;
-          return (
-            <button
-              key={t}
-              onClick={() => setFilter(t)}
-              type="button"
-              style={{
-                padding: "8px 16px",
-                borderRadius: 99,
-                background: sel ? "var(--ink)" : "rgba(0,0,0,0.04)",
-                color: sel ? "var(--surface)" : "var(--ink-2)",
-                fontWeight: 800,
-                fontSize: 13,
-                whiteSpace: "nowrap"
-              }}
-            >
-              {t[0]!.toUpperCase() + t.slice(1)}
-            </button>
-          );
-        })}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {loading && filtered.length === 0 && (
-          <>
-            <SkeletonRow dense />
-            <SkeletonRow dense />
-          </>
-        )}
-        {!loading && filtered.length === 0 && (
-          <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}>
-            <Icon name="trophy" color="var(--sand)" size={28} />
-            <p style={{ margin: "6px 0 0", fontWeight: 700 }}>Nothing here. Nice.</p>
-          </div>
-        )}
-        {filtered.map((c) => (
-          <ChoreRow key={c.id} chore={c} onToggle={onToggle} onOpen={onOpen} onToggleImportant={onToggleImportant} dense />
-        ))}
-      </div>
-
-      <div className="card" style={{ padding: 16, background: "var(--bg-2)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Repeating</h3>
-          <span className="muted" style={{ fontSize: 12 }}>Auto-scheduled</span>
-        </div>
-        <RecurringList rows={recurringNext} dense />
-      </div>
-    </div>
-  );
-}
 
 function RecurringList({ rows, dense }: { rows: ApiChore[]; dense?: boolean }) {
   if (rows.length === 0) {

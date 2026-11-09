@@ -6,7 +6,7 @@ import { Icon } from "./Icon";
 import type { CalEvent } from "./CalendarView";
 import { useMembersForPersona } from "./FamilyMembersContext";
 
-const FAMILY_COLOR = "#C97B5B";
+const FAMILY_COLOR = "#2B9A8F";
 const OTHER_COLOR = "#5C4F3F";
 
 function colorForEvent(e: CalEvent, members: Array<{ slug: string; name: string; color: string }>): string {

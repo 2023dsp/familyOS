@@ -21,7 +21,7 @@ export type CalEvent = {
 
 type Mode = "week" | "month" | "list";
 
-const FAMILY_COLOR = "#C97B5B";
+const FAMILY_COLOR = "#2B9A8F";
 const OTHER_COLOR = "#5C4F3F";
 
 function eventColorWith(members: Array<{ slug: string; name: string; color: string }>, e: CalEvent): string {

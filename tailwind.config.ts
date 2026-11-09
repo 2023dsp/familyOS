@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Nunito", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Bricolage Grotesque", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"]
       },
       colors: {

@@ -5,7 +5,7 @@ import { ModalBackdrop } from "./ModalBackdrop";
 import { Icon } from "./Icon";
 import { useMembersForPersona } from "./FamilyMembersContext";
 
-const FAMILY_OPT = { id: "family", label: "Family", color: "#C97B5B", soft: "#E8C2AC" };
+const FAMILY_OPT = { id: "family", label: "Family", color: "#2B9A8F", soft: "#D2EEEA" };
 const OTHER_OPT = { id: "other", label: "Other", color: "#5C4F3F", soft: "#DFD0B4" };
 type Persona = string;
 
