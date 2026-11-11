@@ -2,7 +2,8 @@
 FROM node:20-bookworm-slim AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# apt-get upgrade: pick up Debian security fixes (libgnutls30, perl-base, ...) that the node base image lags on
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # --- Dependencies (include devDependencies for the build stage) ---
 FROM base AS deps
@@ -36,6 +37,10 @@ COPY --from=builder /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
 COPY --from=builder /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh && chown -R nextjs:nodejs /app
+# The runtime only needs `node` (entrypoint + server.js). npm/corepack ship their own copies of tar, glob,
+# minimatch... that scanners flag and that nothing here ever executes: drop them from the final image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
